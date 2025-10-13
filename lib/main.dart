@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 // OJO: respeta las mayúsculas/minúsculas EXACTAS de tus archivos/clases
 import 'pages/Login.dart';
 import 'pages/RegisterWorker.dart';
 import 'pages/RegisterClient.dart';
+import 'pages/ClientHome.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,6 +19,17 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+       // ✅ Localizations para DatePicker, etc.
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('es', 'CO'),
+        Locale('es', ''), // fallback
+        Locale('en', 'US'),
+      ],
       title: 'Conecta2',
       theme: ThemeData(
         primarySwatch: Colors.blue,
@@ -34,6 +48,7 @@ class MyApp extends StatelessWidget {
         "/login": (context) => const LoginPage(),                 // Login único que recibe el rol por arguments
         "/registerWorker": (context) => const RegisterWorkerPage(), // ✅ nombre correcto de la clase
         "/registerClient": (context) => const RegisterClientPage(),
+        "/clientHome": (context) => const ClientHome(),       // Pantalla principal del Cliente
       },
     );
   }

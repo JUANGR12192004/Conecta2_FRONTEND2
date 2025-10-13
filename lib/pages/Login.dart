@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
+
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -95,10 +96,12 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       // TODO: Reemplaza por tu pantalla después de login
-      // Navigator.pushReplacementNamed(context, "/dashboard");
+       Navigator.pushReplacementNamed(context, "/clientHome");
 
     } catch (e) {
       if (!mounted) return;
+      // 👇 AQUI: redirige al Home del Cliente
+     
 
       // 🔹 Detección simple del caso "Cuenta no verificada"
       final msg = e.toString();

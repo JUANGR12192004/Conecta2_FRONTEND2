@@ -138,7 +138,8 @@ class ApiService {
     if (data["token"] is String) setToken(data["token"]);
     return data;
   }
-   static Future<Map<String, dynamic>> verifyClientAccount(String activationToken) async {
+
+  static Future<Map<String, dynamic>> verifyClientAccount(String activationToken) async {
     final res = await http
         .get(
           _u("/auth/clients/verify", query: {"token": activationToken}),
@@ -148,23 +149,136 @@ class ApiService {
     return _processResponse(res, "verificación de cuenta");
   }
 
+   // ==========================
+  // SERVICIOS (HU005/HU006)
   // ==========================
-  // EJEMPLO PROTEGIDO
-  // ==========================
-  static Future<Map<String, dynamic>> getWorkerProfile() async {
+
+  /// GET /api/v1/clients/services/public/available (pública)
+  static Future<List<Map<String, dynamic>>> getServices() async {
     final res = await http
         .get(
-          _u("/workers/me"),
+          _u("/clients/services/public/available"),
+          headers: _jsonHeaders(),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (res.statusCode == 200) {
+      final decoded = jsonDecode(res.body);
+      if (decoded is List) {
+        return decoded.cast<Map<String, dynamic>>();
+      }
+      // por si en el futuro usas Page
+      if (decoded is Map && decoded['content'] is List) {
+        return (decoded['content'] as List).cast<Map<String, dynamic>>();
+      }
+      return [];
+    }
+
+    throw Exception(
+        "Error listando servicios (${res.statusCode}): ${res.body}");
+  }
+
+  /// POST /api/v1/clients/services  (privada)
+  static Future<Map<String, dynamic>> createService({
+    required String titulo,
+    required String descripcion,
+    required String categoria,  // ENUM del backend (PLOMERIA, etc.)
+    required String ubicacion,
+    required DateTime fechaEstimada,
+  }) async {
+    final body = jsonEncode({
+      "titulo": titulo,
+      "descripcion": descripcion,
+      "categoria": categoria,
+      "ubicacion": ubicacion,
+      "fechaEstimada": fechaEstimada.toIso8601String(), // ISO ok para LocalDateTime
+    });
+
+    final res = await http
+        .post(
+          _u("/clients/services"),
+          headers: _jsonHeaders(auth: true),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (res.statusCode == 201 || res.statusCode == 200) {
+      final decoded = jsonDecode(res.body);
+      if (decoded is Map<String, dynamic>) return decoded;
+      return {"ok": true, "raw": res.body};
+    }
+
+    if (res.statusCode == 403) {
+      throw Exception("No autorizado. Verifica el token (403).");
+    }
+    throw Exception(
+        "Error creando servicio (${res.statusCode}): ${res.body}");
+  }
+
+  /// PUT /api/v1/clients/services/{id}  (privada)
+  static Future<Map<String, dynamic>> updateService({
+    required int id,
+    required String titulo,
+    required String descripcion,
+    required String categoria, // ENUM backend
+    required String ubicacion,
+    required DateTime fechaEstimada,
+  }) async {
+    final body = jsonEncode({
+      "titulo": titulo,
+      "descripcion": descripcion,
+      "categoria": categoria,
+      "ubicacion": ubicacion,
+      "fechaEstimada": fechaEstimada.toIso8601String(),
+    });
+
+    final res = await http
+        .put(
+          _u("/clients/services/$id"),
+          headers: _jsonHeaders(auth: true),
+          body: body,
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (res.statusCode == 200) {
+      final decoded = jsonDecode(res.body);
+      if (decoded is Map<String, dynamic>) return decoded;
+      return {"ok": true, "raw": res.body};
+    }
+
+    if (res.statusCode == 403) {
+      throw Exception("No autorizado. Verifica el token (403).");
+    }
+    throw Exception(
+        "Error actualizando servicio (${res.statusCode}): ${res.body}");
+  }
+
+  /// DELETE /api/v1/clients/services/{id}  (privada)
+  static Future<void> deleteService(int id) async {
+    final res = await http
+        .delete(
+          _u("/clients/services/$id"),
           headers: _jsonHeaders(auth: true),
         )
         .timeout(const Duration(seconds: 15));
-    return _processResponse(res, "obtener perfil");
+
+    if (res.statusCode == 204 || res.statusCode == 200) {
+      return;
+    }
+
+    if (res.statusCode == 403) {
+      throw Exception("No autorizado. Verifica el token (403).");
+    }
+
+    throw Exception(
+        "Error eliminando servicio (${res.statusCode}): ${res.body}");
   }
 
-  // ==========================
-  // Helper de respuestas
-  // ==========================
-  static Map<String, dynamic> _processResponse(http.Response response, String proceso) {
+  // ==========================================================
+  // (Opcional) helpers comunes
+  // ==========================================================
+  static Map<String, dynamic> _processResponse(
+      http.Response response, String proceso) {
     final status = response.statusCode;
     final body = response.body;
 
@@ -178,12 +292,10 @@ class ApiService {
     if (status == 200 || status == 201) {
       return (decoded is Map<String, dynamic>) ? decoded : {"ok": true, "raw": body};
     }
-
     if (status == 400) throw Exception(_msg(decoded, fallback: "Petición inválida ($proceso)"));
-    if (status == 401) throw Exception(_msg(decoded, fallback: "No autorizado. Revisa tus credenciales."));
-    if (status == 403) throw Exception(_msg(decoded, fallback: "Acceso prohibido (¿Cuenta no verificada?)."));
+    if (status == 401) throw Exception(_msg(decoded, fallback: "No autorizado (401)."));
+    if (status == 403) throw Exception(_msg(decoded, fallback: "Prohibido (403)."));
     if (status >= 500) throw Exception("Error del servidor ($status): $body");
-
     throw Exception(_msg(decoded, fallback: "Error en $proceso: $body"));
   }
 
