@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 import '../widgets/account_management_sheet.dart';
@@ -18,7 +18,7 @@ class WorkerHome extends StatefulWidget {
   State<WorkerHome> createState() => _WorkerHomeState();
 }
 
-class _WorkerHomeState extends State<WorkerHome> {
+class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
   int? _workerId;
   Map<String, dynamic>? _profile;
   bool _loading = false;
@@ -29,14 +29,10 @@ class _WorkerHomeState extends State<WorkerHome> {
   List<Map<String, dynamic>> _opportunities = [];
   bool _opLoading = false;
   String? _opError;
-  Duration _pollEvery = const Duration(seconds: 20);
-  Future<void>? _pollTimer;
   // Notificaciones para trabajador (contraofertas/aceptaciones)
   List<Map<String, dynamic>> _incomingOffers = [];
   bool _inOffersLoading = false;
   String? _inOffersError;
-  Duration _offerPollEvery = const Duration(seconds: 15);
-  Future<void>? _offerPollTimer;
 
   int? _asInt(dynamic value) {
     if (value == null) return null;
@@ -44,6 +40,68 @@ class _WorkerHomeState extends State<WorkerHome> {
     if (value is double) return value.toInt();
     if (value is String) return int.tryParse(value);
     return null;
+  }
+
+  double? _asDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      final normalized = value.replaceAll(',', '.');
+      return double.tryParse(normalized);
+    }
+    return null;
+  }
+
+  String _formatCurrency(double? value) {
+    if (value == null) return '';
+    final bool isInt = value % 1 == 0;
+    final amount = isInt ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
+    return '\$$amount';
+  }
+
+  String _participantLabel(dynamic raw) {
+    final value = raw?.toString().trim();
+    if (value == null || value.isEmpty) return '';
+    switch (value.toUpperCase()) {
+      case 'CLIENTE':
+      case 'CUSTOMER':
+        return 'Cliente';
+      case 'TRABAJADOR':
+      case 'WORKER':
+        return 'Trabajador';
+      default:
+        return value[0].toUpperCase() + value.substring(1).toLowerCase();
+    }
+  }
+
+  String _negotiationStateLabel(dynamic raw) {
+    final value = raw?.toString().trim();
+    if (value == null || value.isEmpty) return '';
+    switch (value.toUpperCase()) {
+      case 'EN_NEGOCIACION':
+        return 'En negociación';
+      case 'EN_CURSO':
+      case 'EN_PROCESO':
+        return 'En curso';
+      case 'ACEPTADA':
+        return 'Aceptada';
+      case 'RECHAZADA':
+        return 'Rechazada';
+      case 'CERRADA':
+        return 'Cerrada';
+      case 'PENDIENTE':
+        return 'Pendiente';
+      default:
+        return value[0].toUpperCase() + value.substring(1).toLowerCase();
+    }
+  }
+
+  bool _isWorkerTurn(dynamic raw) {
+    final value = raw?.toString().trim();
+    if (value == null || value.isEmpty) return true;
+    final upper = value.toUpperCase();
+    return upper == 'TRABAJADOR' || upper == 'WORKER';
   }
 
   String _stringFromSources(List<String> keys) {
@@ -68,10 +126,58 @@ class _WorkerHomeState extends State<WorkerHome> {
   String _currentArea() =>
       _stringFromSources(['areaServicio', 'area', 'especialidad']);
 
+  String _serviceStateLabel(dynamic raw) {
+    final value = raw?.toString().trim() ?? '';
+    if (value.isEmpty) return 'Pendiente';
+    switch (value.toUpperCase()) {
+      case 'PENDIENTE':
+        return 'Pendiente';
+      case 'ASIGNADO':
+      case 'EN_PROCESO':
+      case 'EN_CURSO':
+        return 'En curso';
+      case 'FINALIZADO':
+        return 'Finalizado';
+      case 'CANCELADO':
+        return 'Cancelado';
+      default:
+        return value[0].toUpperCase() + value.substring(1).toLowerCase();
+    }
+  }
+
+  int? _serviceIdFromOffer(Map<String, dynamic> offer) {
+    final direct = _asInt(
+      offer['serviceId'] ??
+          offer['servicioId'] ??
+          offer['servicio_id'] ??
+          offer['servicioID'],
+    );
+    if (direct != null) return direct;
+    final nested = offer['service'] ?? offer['servicio'];
+    if (nested is Map) return _asInt(nested['id']);
+    return null;
+  }
+
+  void _removeOpportunityByServiceId(int? serviceId) {
+    if (serviceId == null) return;
+    setState(() {
+      _opportunities.removeWhere((svc) {
+        final id = _asInt(svc['id']);
+        return id != null && id == serviceId;
+      });
+    });
+  }
+
   String _initialLetter() {
     final source = _currentName().isNotEmpty ? _currentName() : _currentEmail();
     if (source.isEmpty) return '?';
     return source.trim().substring(0, 1).toUpperCase();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
@@ -98,8 +204,13 @@ class _WorkerHomeState extends State<WorkerHome> {
 
     if (_workerId != null) {
       _fetchProfile();
-      _startPolling();
-      _startOfferPolling();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      _refreshWorkerData();
     }
   }
 
@@ -119,7 +230,7 @@ class _WorkerHomeState extends State<WorkerHome> {
         _profile = data;
         _loading = false;
       });
-      await _fetchOpportunities();
+      await _refreshWorkerData();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -127,6 +238,12 @@ class _WorkerHomeState extends State<WorkerHome> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _refreshWorkerData() async {
+    if (_workerId == null) return;
+    await _fetchOpportunities();
+    await _fetchIncomingOffers();
   }
 
   Future<void> _fetchOpportunities() async {
@@ -190,34 +307,6 @@ class _WorkerHomeState extends State<WorkerHome> {
     }
   }
 
-  void _startPolling() {
-    _pollTimer = Future.delayed(_pollEvery, () async {
-      if (!mounted) return;
-      await _fetchOpportunities();
-      if (!mounted) return;
-      _startPolling();
-    });
-  }
-
-  void _stopPolling() {
-    // Usamos Future.delayed en cadena; al salir de la pantalla, la siguiente
-    // llamada a _startPolling no se reencadena debido a mounted=false.
-    _pollTimer = null;
-  }
-
-  void _startOfferPolling() {
-    _offerPollTimer = Future.delayed(_offerPollEvery, () async {
-      if (!mounted) return;
-      await _fetchIncomingOffers();
-      if (!mounted) return;
-      _startOfferPolling();
-    });
-  }
-
-  void _stopOfferPolling() {
-    _offerPollTimer = null;
-  }
-
   Future<void> _openAccountManager() async {
     final id = _workerId;
     if (id == null) {
@@ -265,8 +354,7 @@ class _WorkerHomeState extends State<WorkerHome> {
 
   @override
   void dispose() {
-    _stopPolling();
-    _stopOfferPolling();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -600,6 +688,273 @@ _buildMapCard(),
           : body,
     );
   }
+
+  Future<void> _openWorkerNotifications() async {
+    await _fetchIncomingOffers();
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      useSafeArea: true,
+      builder: (ctx) {
+        return StatefulBuilder(builder: (ctx, setM) {
+          Future<void> respond({
+            required int offerId,
+            required String action,
+            double? monto,
+            String? mensaje,
+            int? serviceId,
+          }) async {
+            final upper = action.toUpperCase();
+            try {
+              if (upper == 'COUNTER') {
+                final counterMonto = monto;
+                if (counterMonto == null || counterMonto <= 0) {
+                  throw Exception('Monto inválido');
+                }
+                await ApiService.workerCounterOffer(
+                  offerId: offerId,
+                  monto: counterMonto,
+                  mensaje: mensaje,
+                );
+              } else {
+                await ApiService.workerRespondOffer(
+                  offerId: offerId,
+                  action: upper,
+                  mensaje: mensaje,
+                );
+              }
+              if (!mounted) return;
+              setM(() => _incomingOffers.removeWhere((o) {
+                    final raw = o['id'];
+                    if (raw is int) return raw == offerId;
+                    return int.tryParse(raw.toString()) == offerId;
+                  }));
+              if (upper == 'ACCEPT' && mounted) {
+                _removeOpportunityByServiceId(serviceId);
+              }
+              await _fetchOpportunities();
+              final color = upper == 'ACCEPT'
+                  ? Colors.green
+                  : upper == 'REJECT'
+                      ? Colors.red
+                      : _workerPrimary;
+              final text = upper == 'ACCEPT'
+                  ? 'Oferta aceptada'
+                  : upper == 'REJECT'
+                      ? 'Oferta rechazada'
+                      : 'Contraoferta enviada';
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(text),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: color,
+                ),
+              );
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error: $e'),
+                  behavior: SnackBarBehavior.floating,
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+
+          Future<void> doCounter(int offerId, int? serviceId) async {
+            final priceCtrl = TextEditingController();
+            final noteCtrl = TextEditingController();
+            String? errorText;
+            final payload = await showDialog<Map<String, dynamic>?>(
+              context: context,
+              builder: (_) => StatefulBuilder(
+                builder: (dialogCtx, setDialogState) {
+                  return AlertDialog(
+                    title: const Text('Enviar contraoferta'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: priceCtrl,
+                          autofocus: true,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(
+                            labelText: 'Monto',
+                            prefixIcon: Icon(Icons.attach_money),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: noteCtrl,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Mensaje (opcional)',
+                            prefixIcon: Icon(Icons.message_outlined),
+                          ),
+                        ),
+                        if (errorText != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                errorText!,
+                                style: const TextStyle(color: Colors.red, fontSize: 12),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        child: const Text('Cancelar'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          final raw = priceCtrl.text.trim().replaceAll(',', '.');
+                          final value = double.tryParse(raw);
+                          if (value == null || value <= 0) {
+                            setDialogState(() => errorText = 'Ingresa un monto válido');
+                            return;
+                          }
+                          final note = noteCtrl.text.trim();
+                          Navigator.pop(dialogCtx, {
+                            "monto": value,
+                            if (note.isNotEmpty) "mensaje": note,
+                          });
+                        },
+                        child: const Text('Enviar'),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            );
+
+            final monto = payload?['monto'] as double?;
+            if (monto == null || monto <= 0) return;
+            final mensaje = payload?['mensaje'] as String?;
+            await respond(
+              offerId: offerId,
+              action: 'COUNTER',
+              monto: monto,
+              mensaje: mensaje,
+              serviceId: serviceId,
+            );
+          }
+
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
+                ),
+                const SizedBox(height: 12),
+                const Text('Notificaciones', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                if (_inOffersLoading && _incomingOffers.isEmpty)
+                  const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()))
+                else if (_inOffersError != null)
+                  Material(
+                    color: Colors.red.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                    child: ListTile(
+                      leading: const Icon(Icons.error_outline, color: Colors.red),
+                      title: Text('' + _inOffersError.toString(), style: const TextStyle(color: Colors.red)),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.refresh, color: Colors.red),
+                        onPressed: _fetchIncomingOffers,
+                      ),
+                    ),
+                  )
+                else if (_incomingOffers.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: Text('No tienes nuevas respuestas.', style: TextStyle(color: Colors.black54)),
+                  )
+                else
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: _incomingOffers.length,
+                      separatorBuilder: (_, __) => const Divider(height: 16),
+                      itemBuilder: (context, i) {
+                        final o = _incomingOffers[i];
+                        final client = (o['clientName'] ?? 'Cliente').toString();
+                        final estadoRaw = (o['estadoNegociacion'] ?? o['estado'] ?? '').toString();
+                        final estado = _negotiationStateLabel(estadoRaw);
+                        final turnoRaw = o['requiereRespuestaDe'] ?? o['turno'] ?? o['pendingFor'];
+                        final turno = _participantLabel(turnoRaw);
+                        final ultimo = _participantLabel(o['ultimoEmisor'] ?? o['lastActor']);
+                        final serviceTitle = (o['serviceTitle'] ?? o['tituloServicio'] ?? '').toString();
+                        final montoActual = _asDouble(o['monto'] ?? o['precio'] ?? o['montoActual'] ?? o['montoFinal']);
+                        final montoCliente = _asDouble(o['montoCliente'] ?? o['precioCliente']);
+                        final montoTrab = _asDouble(o['montoTrabajador'] ?? o['precioTrabajador']);
+                        final offerId = () {
+                          final v = o['id'];
+                          if (v is int) return v;
+                          return int.tryParse(v.toString()) ?? 0;
+                        }();
+                        final serviceId = _serviceIdFromOffer(o);
+                        final subtitleLines = <String>[
+                          if (serviceTitle.isNotEmpty) 'Servicio: ' + serviceTitle,
+                          if (estado.isNotEmpty) 'Estado: ' + estado,
+                          if (turno.isNotEmpty) 'Turno: ' + turno,
+                          if (ultimo.isNotEmpty) '?ltima oferta: ' + ultimo,
+                          if (montoActual != null) 'Monto vigente: ' + _formatCurrency(montoActual),
+                          if (montoCliente != null) 'Cliente ofert?: ' + _formatCurrency(montoCliente),
+                          if (montoTrab != null) 'Tu oferta: ' + _formatCurrency(montoTrab),
+                        ];
+                        final subtitleWidget = subtitleLines.isEmpty
+                            ? null
+                            : Text(subtitleLines.join('\n'));
+                        final estadoNormalized = estadoRaw.toUpperCase();
+                        final canRespond = offerId > 0 && (estadoNormalized.isEmpty || estadoNormalized == 'EN_NEGOCIACION') && _isWorkerTurn(turnoRaw);
+                        return ListTile(
+                          leading: const CircleAvatar(child: Icon(Icons.campaign_outlined)),
+                          title: Text(client),
+                          subtitle: subtitleWidget,
+                          trailing: Wrap(
+                            spacing: 8,
+                            children: [
+                              IconButton(
+                                tooltip: 'Aceptar',
+                                icon: const Icon(Icons.check_circle, color: Colors.green),
+                                onPressed: canRespond ? () => respond(offerId: offerId, action: 'ACCEPT', serviceId: serviceId) : null,
+                              ),
+                              IconButton(
+                                tooltip: 'Rechazar',
+                                icon: const Icon(Icons.cancel, color: Colors.red),
+                                onPressed: canRespond ? () => respond(offerId: offerId, action: 'REJECT', serviceId: serviceId) : null,
+                              ),
+                              IconButton(
+                                tooltip: 'Contraoferta',
+                                icon: const Icon(Icons.swap_horiz, color: Colors.orange),
+                                onPressed: canRespond ? () => doCounter(offerId, serviceId) : null,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          );
+        });
+      },
+    );
+  }
+
 }
 
 Widget _statusChip(String text, Color color) {
@@ -657,7 +1012,14 @@ if (_opError != null) {
                   final titulo = (s['titulo'] ?? '').toString();
                   final categoria = normalizeCategoryValue((s['categoria'] ?? '').toString());
                   final ubicacion = (s['ubicacion'] ?? '').toString();
-                  final estado = (s['estado'] ?? 'PENDIENTE').toString();
+                  final estadoRaw = (s['estado'] ?? s['estadoServicio'] ?? s['status'] ?? 'PENDIENTE').toString();
+                  final estadoUpper = estadoRaw.toUpperCase();
+                  final estadoLabel = _serviceStateLabel(estadoRaw);
+                  final negotiationRaw = (s['estadoNegociacion'] ?? s['negociacionEstado'] ?? '').toString();
+                  final negotiationUpper = negotiationRaw.toUpperCase();
+                  final negotiationLabel = negotiationRaw.isEmpty ? '' : _negotiationStateLabel(negotiationRaw);
+                  final negotiationOpen = negotiationUpper == 'EN_NEGOCIACION';
+                  final bool canOffer = estadoUpper == 'PENDIENTE' && !negotiationOpen;
                   final fechaRaw = (s['fechaEstimada'] ?? s['fecha'] ?? '').toString();
                   DateTime? fecha;
                   try { fecha = DateTime.tryParse(fechaRaw); } catch (_) {}
@@ -672,9 +1034,10 @@ if (_opError != null) {
                   }();
 
                   Color statusColor = Colors.orange;
-                  switch (estado.toUpperCase()) {
+                  switch (estadoUpper) {
                     case 'ASIGNADO':
                     case 'EN_PROCESO':
+                    case 'EN_CURSO':
                       statusColor = Colors.blue; break;
                     case 'FINALIZADO':
                       statusColor = Colors.green; break;
@@ -684,39 +1047,82 @@ if (_opError != null) {
                       statusColor = Colors.orange; break;
                   }
 
-                  return ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: _workerPrimary.withOpacity(0.08),
-                      child: const Icon(Icons.work_outline, color: _workerPrimary),
-                    ),
-                    title: Text(
-                      titulo.isEmpty ? 'Servicio' : titulo,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    subtitle: Text([
-  
-                      if (ubicacion.isNotEmpty) ubicacion,
-                      if (categoria.isNotEmpty) categoryDisplayLabel(categoria),
-                      if (fechaTxt.isNotEmpty) 'Fecha: $fechaTxt',
-                    ].join(' • ')),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _statusChip(estado, statusColor),
-                        const SizedBox(width: 8),
-                        ElevatedButton(
-                          onPressed: serviceId == null
-                              ? null
-                              : () => _openOfferSheet(serviceId, titulo),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _workerPrimary,
-                            foregroundColor: Colors.white,
+                  final details = <String>[
+                    if (ubicacion.isNotEmpty) ubicacion,
+                    if (categoria.isNotEmpty) categoryDisplayLabel(categoria),
+                    if (fechaTxt.isNotEmpty) 'Fecha: $fechaTxt',
+                    if (negotiationLabel.isNotEmpty) 'Negociacion: $negotiationLabel',
+                  ];
+
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: serviceId == null || !canOffer
+                        ? null
+                        : () => _openOfferSheet(serviceId, titulo),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: _workerPrimary.withOpacity(0.08),
+                            child: const Icon(Icons.work_outline, color: _workerPrimary),
                           ),
-                          child: const Text('Ofertar'),
-                        ),
-                      ],
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  titulo.isEmpty ? 'Servicio' : titulo,
+                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                ),
+                                if (details.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Text(details.join('\n')),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(minWidth: 120, maxWidth: 160),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                _statusChip(estadoLabel, statusColor),
+                                const SizedBox(height: 6),
+                                Tooltip(
+                                  message: canOffer
+                                      ? 'Enviar una nueva oferta'
+                                      : 'Este servicio ya no admite nuevas ofertas',
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: serviceId == null || !canOffer
+                                          ? null
+                                          : () => _openOfferSheet(serviceId, titulo),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: _workerPrimary,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 10),
+                                        minimumSize: const Size(0, 40),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(24),
+                                        ),
+                                      ),
+                                      child: const Text('Ofertar'),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    onTap: serviceId == null ? null : () => _openOfferSheet(serviceId, titulo),
                   );
                 },
               ),
@@ -725,106 +1131,6 @@ if (_opError != null) {
       ),
     );
   }
-
-  Future<void> _openWorkerNotifications() async {
-    await _fetchIncomingOffers();
-    if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      useSafeArea: true,
-      builder: (ctx) {
-        return StatefulBuilder(builder: (ctx, setM) {
-          Future<void> respond(int offerId, String action) async {
-            try {
-              await ApiService.respondOffer(offerId: offerId, action: action);
-              setM(() => _incomingOffers.removeWhere((o) => (o['id'] ?? 0) == offerId));
-            } catch (e) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: ' + e.toString()), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
-              );
-            }
-          }
-
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
-                ),
-                const SizedBox(height: 12),
-                const Text('Notificaciones', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 8),
-                if (_inOffersLoading && _incomingOffers.isEmpty)
-                  const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()))
-                else if (_inOffersError != null)
-                  Material(
-                    color: Colors.red.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(12),
-                    child: ListTile(
-                      leading: const Icon(Icons.error_outline, color: Colors.red),
-                      title: Text('' + _inOffersError.toString(), style: const TextStyle(color: Colors.red)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.refresh, color: Colors.red),
-                        onPressed: _fetchIncomingOffers,
-                      ),
-                    ),
-                  )
-                else if (_incomingOffers.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text('No tienes nuevas respuestas.', style: TextStyle(color: Colors.black54)),
-                  )
-                else
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      itemCount: _incomingOffers.length,
-                      separatorBuilder: (_, __) => const Divider(height: 16),
-                      itemBuilder: (context, i) {
-                        final o = _incomingOffers[i];
-                        final client = (o['clientName'] ?? 'Cliente').toString();
-                        final estado = (o['estado'] ?? '').toString();
-                        final precio = (o['precio'] ?? o['monto'] ?? '').toString();
-                        final offerId = () { final v = o['id']; if(v is int) return v; return int.tryParse(v.toString()) ?? 0; }();
-                        return ListTile(
-                          leading: const CircleAvatar(child: Icon(Icons.campaign_outlined)),
-                          title: Text(client),
-                          subtitle: Text(['Estado: ' + estado, if (precio.isNotEmpty) 'Precio: ' + precio].join(' • ')),
-                          trailing: Wrap(
-                            spacing: 8,
-                            children: [
-                              IconButton(
-                                tooltip: 'Aceptar',
-                                icon: const Icon(Icons.check_circle, color: Colors.green),
-                                onPressed: () => respond(offerId, 'ACCEPT'),
-                              ),
-                              IconButton(
-                                tooltip: 'Rechazar',
-                                icon: const Icon(Icons.cancel, color: Colors.red),
-                                onPressed: () => respond(offerId, 'REJECT'),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-              ],
-            ),
-          );
-        });
-      },
-    );
-  }
-  }
-
 
   Widget _buildMapCard() {
     return Card(
@@ -843,6 +1149,16 @@ if (_opError != null) {
       ),
     );
   }
+}
+
+
+
+
+
+
+
+
+
 
 
 

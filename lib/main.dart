@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 // OJO: respeta las mayúsculas/minúsculas EXACTAS de tus archivos/clases
 import 'pages/Login.dart';

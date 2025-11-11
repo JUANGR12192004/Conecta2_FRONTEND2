@@ -85,6 +85,118 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     return null;
   }
 
+  double? _asDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      final normalized = value.replaceAll(',', '.');
+      return double.tryParse(normalized);
+    }
+    return null;
+  }
+
+  String _formatCurrency(double? value) {
+    if (value == null) return '';
+    final bool isInt = value % 1 == 0;
+    final amount = isInt ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
+    return '\$$amount';
+  }
+
+  String _participantLabel(dynamic raw) {
+    final value = raw?.toString().trim();
+    if (value == null || value.isEmpty) return '';
+    switch (value.toUpperCase()) {
+      case 'CLIENTE':
+      case 'CUSTOMER':
+        return 'Cliente';
+      case 'TRABAJADOR':
+      case 'WORKER':
+        return 'Trabajador';
+      default:
+        return value[0].toUpperCase() + value.substring(1).toLowerCase();
+    }
+  }
+
+  String _negotiationStateLabel(dynamic raw) {
+    final value = raw?.toString().trim();
+    if (value == null || value.isEmpty) return '';
+    switch (value.toUpperCase()) {
+      case 'EN_NEGOCIACION':
+        return 'En negociación';
+      case 'EN_CURSO':
+      case 'EN_PROCESO':
+        return 'En curso';
+      case 'ACEPTADA':
+        return 'Aceptada';
+      case 'RECHAZADA':
+        return 'Rechazada';
+      case 'CERRADA':
+        return 'Cerrada';
+      case 'PENDIENTE':
+        return 'Pendiente';
+      default:
+        return value[0].toUpperCase() + value.substring(1).toLowerCase();
+    }
+  }
+
+  String _serviceStateLabel(dynamic raw) {
+    final value = raw?.toString().trim() ?? '';
+    if (value.isEmpty) return 'Pendiente';
+    switch (value.toUpperCase()) {
+      case 'PENDIENTE':
+        return 'Pendiente';
+      case 'ASIGNADO':
+      case 'EN_PROCESO':
+      case 'EN_CURSO':
+        return 'En curso';
+      case 'FINALIZADO':
+        return 'Finalizado';
+      case 'CANCELADO':
+        return 'Cancelado';
+      default:
+        return value[0].toUpperCase() + value.substring(1).toLowerCase();
+    }
+  }
+
+  bool _isClientTurn(dynamic raw) {
+    final value = raw?.toString().trim();
+    if (value == null || value.isEmpty) return true;
+    final upper = value.toUpperCase();
+    return upper == 'CLIENTE' || upper == 'CUSTOMER';
+  }
+
+  int? _serviceIdFromOffer(Map<String, dynamic> offer) {
+    final direct = _asInt(
+      offer['serviceId'] ??
+          offer['servicioId'] ??
+          offer['servicio_id'] ??
+          offer['servicioID'],
+    );
+    if (direct != null) return direct;
+    final nested = offer['service'] ?? offer['servicio'];
+    if (nested is Map) return _asInt(nested['id']);
+    return null;
+  }
+
+  void _updateLocalServiceState(int? serviceId, String newState) {
+    if (serviceId == null) return;
+    setState(() {
+      _services = _services
+          .map((svc) {
+            final id = _asInt(svc['id']);
+            if (id != null && id == serviceId) {
+              final updated = Map<String, dynamic>.from(svc);
+              updated['estado'] = newState;
+              updated['estadoServicio'] = newState;
+              return updated;
+            }
+            return svc;
+          })
+          .toList();
+    });
+  }
+
   String _stringFromSources(List<String> keys) {
     final Map<String, dynamic> combined = {};
     if (_initialArgs != null) combined.addAll(_initialArgs!);
@@ -175,11 +287,19 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
       useSafeArea: true,
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setM) {
-          Future<void> doAccept(int id) async {
+          void removeLocal(int id) {
+            setM(() => _offers.removeWhere((o) {
+                  final raw = o['id'];
+                  if (raw is int) return raw == id;
+                  return int.tryParse(raw.toString()) == id;
+                }));
+          }
+
+          Future<void> doAccept(int id, int? serviceId) async {
             try {
-              await ApiService.respondOffer(offerId: id, action: 'ACCEPT');
-              setM(() => _offers.removeWhere((o) => (o['id'] ?? 0) == id));
-              // Refresca lista de servicios para reflejar estado ASIGNADO
+              await ApiService.clientRespondOffer(offerId: id, action: 'ACCEPT');
+              removeLocal(id);
+              if (mounted) _updateLocalServiceState(serviceId, 'EN_PROCESO');
               await _loadServices();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -193,10 +313,18 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
             }
           }
 
-          Future<void> doReject(int id) async {
+          Future<void> doReject(int id, int? serviceId) async {
             try {
-              await ApiService.respondOffer(offerId: id, action: 'REJECT');
-              setM(() => _offers.removeWhere((o) => (o['id'] ?? 0) == id));
+              await ApiService.clientRespondOffer(offerId: id, action: 'REJECT');
+              removeLocal(id);
+              if (mounted && serviceId != null) {
+                _updateLocalServiceState(serviceId, 'PENDIENTE');
+              }
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Oferta rechazada'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
+                );
+              }
             } catch (e) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
@@ -205,33 +333,80 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
           }
 
           Future<void> doCounter(int id) async {
-            final ctrl = TextEditingController();
-            final newPrice = await showDialog<double?>(
+            final priceCtrl = TextEditingController();
+            final noteCtrl = TextEditingController();
+            String? errorText;
+            final payload = await showDialog<Map<String, dynamic>?>(
               context: context,
-              builder: (_) => AlertDialog(
-                title: const Text('Enviar contraoferta'),
-                content: TextField(
-                  controller: ctrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Nuevo precio',
-                    prefixIcon: Icon(Icons.attach_money),
-                  ),
-                ),
-                actions: [
-                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-                  TextButton(onPressed: () {
-                    final raw = ctrl.text.trim().replaceAll(',', '.');
-                    final v = double.tryParse(raw);
-                    Navigator.pop(context, v);
-                  }, child: const Text('Enviar')),
-                ],
+              builder: (_) => StatefulBuilder(
+                builder: (dialogCtx, setDialogState) {
+                  return AlertDialog(
+                    title: const Text('Enviar contraoferta'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: priceCtrl,
+                          autofocus: true,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(
+                            labelText: 'Nuevo precio',
+                            prefixIcon: Icon(Icons.attach_money),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: noteCtrl,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Mensaje (opcional)',
+                            prefixIcon: Icon(Icons.message_outlined),
+                          ),
+                        ),
+                        if (errorText != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(errorText!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                            ),
+                          ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
+                      TextButton(
+                        onPressed: () {
+                          final raw = priceCtrl.text.trim().replaceAll(',', '.');
+                          final value = double.tryParse(raw);
+                          if (value == null || value <= 0) {
+                            setDialogState(() => errorText = 'Ingresa un monto válido');
+                            return;
+                          }
+                          final note = noteCtrl.text.trim();
+                          Navigator.pop(dialogCtx, {
+                            "monto": value,
+                            if (note.isNotEmpty) "mensaje": note,
+                          });
+                        },
+                        child: const Text('Enviar'),
+                      ),
+                    ],
+                  );
+                },
               ),
             );
-            if (newPrice == null || newPrice <= 0) return;
+            final monto = payload?['monto'] as double?;
+            if (monto == null || monto <= 0) return;
+            final mensaje = payload?['mensaje'] as String?;
             try {
-              await ApiService.respondOffer(offerId: id, action: 'COUNTER', precio: newPrice);
-              setM(() => _offers.removeWhere((o) => (o['id'] ?? 0) == id));
+              await ApiService.clientCounterOffer(offerId: id, monto: monto, mensaje: mensaje);
+              removeLocal(id);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Contraoferta enviada'), behavior: SnackBarBehavior.floating, backgroundColor: _primary),
+                );
+              }
             } catch (e) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
@@ -272,22 +447,46 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                       itemBuilder: (context, i) {
                         final o = _offers[i];
                         final workerName = (o['workerName'] ?? o['trabajador'] ?? 'Trabajador').toString();
-                        final precio = (o['precio'] ?? o['monto'] ?? '').toString();
-                        final titulo = (o['serviceTitle'] ?? o['tituloServicio'] ?? '').toString();
-                        final offerId = () { final v = o['id']; if (v is int) return v; return int.tryParse(v.toString()) ?? 0; }();
+                        final workerLabel = workerName.isEmpty ? 'Trabajador' : workerName;
+                        final estadoRaw = (o['estadoNegociacion'] ?? o['estado'] ?? '').toString();
+                        final estado = _negotiationStateLabel(estadoRaw);
+                        final turnoRaw = o['requiereRespuestaDe'] ?? o['turno'] ?? o['pendingFor'];
+                        final turno = _participantLabel(turnoRaw);
+                        final ultimo = _participantLabel(o['ultimoEmisor'] ?? o['lastActor']);
+                        final serviceTitle = (o['serviceTitle'] ?? o['tituloServicio'] ?? '').toString();
+                        final montoActual = _asDouble(o['monto'] ?? o['precio'] ?? o['montoActual'] ?? o['montoFinal']);
+                        final montoTrab = _asDouble(o['montoTrabajador'] ?? o['precioTrabajador'] ?? o['precio']);
+                        final montoCliente = _asDouble(o['montoCliente'] ?? o['precioCliente']);
+                        final offerId = () {
+                          final v = o['id'];
+                          if (v is int) return v;
+                          return int.tryParse(v.toString()) ?? 0;
+                        }();
+                        final serviceId = _serviceIdFromOffer(o);
+                        final subtitleLines = <String>[
+                          if (serviceTitle.isNotEmpty) 'Servicio: ' + serviceTitle,
+                          if (estado.isNotEmpty) 'Estado: ' + estado,
+                          if (turno.isNotEmpty) 'Turno: ' + turno,
+                          if (ultimo.isNotEmpty) '?ltima oferta: ' + ultimo,
+                          if (montoActual != null) 'Monto vigente: ' + _formatCurrency(montoActual),
+                          if (montoTrab != null) 'Propuesta del trabajador: ' + _formatCurrency(montoTrab),
+                          if (montoCliente != null) 'Tu oferta: ' + _formatCurrency(montoCliente),
+                        ];
+                        final subtitleWidget = subtitleLines.isEmpty
+                            ? null
+                            : Text(subtitleLines.join('\n'));
+                        final estadoNormalized = estadoRaw.toUpperCase();
+                        final canRespond = offerId > 0 && (estadoNormalized.isEmpty || estadoNormalized == 'EN_NEGOCIACION') && _isClientTurn(turnoRaw);
                         return ListTile(
                           leading: const CircleAvatar(child: Icon(Icons.campaign_outlined)),
-                          title: Text('$workerName ofertó'),
-                          subtitle: Text([
-                            if (titulo.isNotEmpty) 'Servicio: $titulo',
-                            if (precio.isNotEmpty) 'Precio: $precio',
-                          ].join(' • ')),
+                          title: Text(workerLabel + ' ofert?'),
+                          subtitle: subtitleWidget,
                           trailing: Wrap(
                             spacing: 8,
                             children: [
-                              IconButton(tooltip: 'Aceptar', icon: const Icon(Icons.check_circle, color: Colors.green), onPressed: () => doAccept(offerId)),
-                              IconButton(tooltip: 'Rechazar', icon: const Icon(Icons.cancel, color: Colors.red), onPressed: () => doReject(offerId)),
-                              IconButton(tooltip: 'Contraoferta', icon: const Icon(Icons.swap_horiz, color: Colors.orange), onPressed: () => doCounter(offerId)),
+                              IconButton(tooltip: 'Aceptar', icon: const Icon(Icons.check_circle, color: Colors.green), onPressed: canRespond ? () => doAccept(offerId, serviceId) : null),
+                              IconButton(tooltip: 'Rechazar', icon: const Icon(Icons.cancel, color: Colors.red), onPressed: canRespond ? () => doReject(offerId, serviceId) : null),
+                              IconButton(tooltip: 'Contraoferta', icon: const Icon(Icons.swap_horiz, color: Colors.orange), onPressed: canRespond ? () => doCounter(offerId) : null),
                             ],
                           ),
                         );
@@ -337,11 +536,19 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     );
     if (ok != true) return;
     try {
-      await ApiService.deleteService(serviceId);
-      await _loadServices();
+      final result = await ApiService.deleteService(serviceId);
+      final bool success = result['exitoso'] == true;
+      final String message = (result['mensaje'] ?? (success ? 'Servicio eliminado' : 'No se puede eliminar un servicio aceptado.')).toString();
+      if (success) {
+        await _loadServices();
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Servicio eliminado'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.black87),
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: success ? Colors.black87 : Colors.orange,
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -453,7 +660,9 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                     final titulo = (s['titulo'] ?? '').toString();
                     final categoria = categoryDisplayLabel((s['categoria'] ?? '').toString());
                     final ubicacion = (s['ubicacion'] ?? '').toString();
-                    final estado = (s['estado'] ?? 'PENDIENTE').toString();
+                    final estadoRaw = (s['estado'] ?? s['estadoServicio'] ?? s['status'] ?? 'PENDIENTE').toString();
+                    final estadoUpper = estadoRaw.toUpperCase();
+                    final estadoLabel = _serviceStateLabel(estadoRaw);
                     final int? serviceId = () {
                       final v = s['id'];
                       if (v == null) return null;
@@ -470,36 +679,47 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                             backgroundColor: const Color(0xFF7E57C2).withOpacity(0.12),
                             child: const Icon(Icons.work_outline, color: Color(0xFF7E57C2)),
                           ),
-                          title: Text(titulo.isEmpty ? 'Servicio' : titulo,
-                              style: const TextStyle(fontWeight: FontWeight.w700)),
-                          subtitle: Text([
-                            if (ubicacion.isNotEmpty) ubicacion,
-                            if (categoria.isNotEmpty) categoria,
-                            'Estado: $estado',
-                          ].join(' • ')),
+                          title: Text(
+                            titulo.isEmpty ? 'Servicio' : titulo,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: () {
+                            final parts = <String>[
+                              if (ubicacion.isNotEmpty) ubicacion,
+                              if (categoria.isNotEmpty) categoria,
+                              if (estadoLabel.isNotEmpty) 'Estado: $estadoLabel',
+                            ];
+                            if (parts.isEmpty) return null;
+                            return Text(parts.join(' - '));
+                          }(),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               () {
                                 Color statusColor = Colors.orange;
-                                switch (estado.toUpperCase()) {
+                                switch (estadoUpper) {
                                   case 'ASIGNADO':
                                   case 'EN_PROCESO':
-                                    statusColor = Colors.blue; break;
+                                  case 'EN_CURSO':
+                                    statusColor = Colors.blue;
+                                    break;
                                   case 'FINALIZADO':
-                                    statusColor = Colors.green; break;
+                                    statusColor = Colors.green;
+                                    break;
                                   case 'CANCELADO':
-                                    statusColor = Colors.red; break;
+                                    statusColor = Colors.red;
+                                    break;
                                   default:
-                                    statusColor = Colors.orange; break;
+                                    statusColor = Colors.orange;
+                                    break;
                                 }
                                 return Chip(
-                                  label: Text(estado),
+                                  label: Text(estadoLabel),
                                   backgroundColor: statusColor.withOpacity(0.1),
                                   labelStyle: TextStyle(color: statusColor, fontWeight: FontWeight.w600),
                                 );
                               }(),
-                              if (estado.toUpperCase() == 'PENDIENTE' && serviceId != null) ...[
+                              if (estadoUpper == 'PENDIENTE' && serviceId != null) ...[
                                 const SizedBox(width: 6),
                                 PopupMenuButton<String>(
                                   tooltip: 'Opciones',
@@ -511,8 +731,20 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                                     }
                                   },
                                   itemBuilder: (context) => [
-                                    const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(Icons.edit_outlined), title: Text('Editar'))),
-                                    const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete_outline, color: Colors.red), title: Text('Eliminar'))),
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: ListTile(
+                                        leading: Icon(Icons.edit_outlined),
+                                        title: Text('Editar'),
+                                      ),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: ListTile(
+                                        leading: Icon(Icons.delete_outline, color: Colors.red),
+                                        title: Text('Eliminar'),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -521,6 +753,7 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                         ),
                       ),
                     );
+
                   }),
                   const SizedBox(height: 8),
                   const Text('Ver mapa', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
@@ -852,3 +1085,7 @@ class _EditServiceFormState extends State<_EditServiceForm> {
     );
   }
 }
+
+
+
+

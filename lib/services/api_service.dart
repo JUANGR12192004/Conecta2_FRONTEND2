@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
+import '../utils/categories.dart';
 
 class ApiService {
   // ==========================
@@ -56,10 +57,15 @@ class ApiService {
     required String nombreCompleto,
     required String correo,
     required String celular,
-    required String areaServicio,
+    required String categoriaServicio,
     required String contrasena,
     required String confirmarContrasena,
   }) async {
+    final normalizedCategory = normalizeCategoryValue(categoriaServicio);
+    if (normalizedCategory.isEmpty) {
+      throw Exception("Categoria de servicio invalida.");
+    }
+
     final res = await http
         .post(
           _u("/auth/workers/register"),
@@ -68,13 +74,84 @@ class ApiService {
             "nombreCompleto": nombreCompleto,
             "correo": correo,
             "celular": celular,
-            "areaServicio": areaServicio,
+            "categoriaServicio": normalizedCategory,
+            "areaServicio": normalizedCategory,
             "contrasena": contrasena,
             "confirmarContrasena": confirmarContrasena,
           }),
         )
         .timeout(const Duration(seconds: 15));
     return _processResponse(res, "registro de trabajador");
+  }
+
+  static Future<List<String>> getPublicServiceCategories() async {
+    final res = await http
+        .get(
+          _u("/clients/services/public/categories"),
+          headers: _jsonHeaders(),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (res.statusCode != 200) {
+      throw Exception(
+        "Error obteniendo categorias (${res.statusCode}): ${res.body}",
+      );
+    }
+
+    dynamic decoded;
+    try {
+      decoded = res.body.isNotEmpty ? jsonDecode(res.body) : null;
+    } catch (_) {
+      decoded = null;
+    }
+
+    final seen = <String>{};
+    final result = <String>[];
+    final enumPattern = RegExp(r'^[A-Z0-9_]+$');
+
+    void addValue(String? raw) {
+      if (raw == null) return;
+      final normalized = normalizeCategoryValue(raw);
+      if (normalized.isEmpty) return;
+      if (!enumPattern.hasMatch(normalized)) return;
+      if (seen.add(normalized)) result.add(normalized);
+    }
+
+    void traverse(dynamic value) {
+      if (value == null) return;
+      if (value is String) {
+        addValue(value);
+        return;
+      }
+      if (value is Map) {
+        addValue(value['value'] as String?);
+        addValue(value['code'] as String?);
+        addValue(value['codigo'] as String?);
+        addValue(value['categoria'] as String?);
+        addValue(value['clave'] as String?);
+        addValue(value['key'] as String?);
+        addValue(value['name'] as String?);
+        for (final entry in value.values) {
+          if (entry is Map || entry is Iterable || entry is String) {
+            traverse(entry);
+          }
+        }
+        return;
+      }
+      if (value is Iterable) {
+        for (final item in value) {
+          traverse(item);
+        }
+      }
+    }
+
+    traverse(decoded);
+
+    if (result.isNotEmpty) return result;
+    if (kServiceCategoryLabels.isNotEmpty) {
+      return List<String>.from(kServiceCategoryLabels.keys);
+    }
+    throw Exception("No hay categorias disponibles.");
   }
 
   static Future<Map<String, dynamic>> loginWorker({
@@ -249,21 +326,49 @@ class ApiService {
   // ==========================
 
   static Future<Map<String, dynamic>> fetchClientById(int id) async {
-    final res = await http
-        .get(_absolute("/api/Clientes/$id"), headers: _jsonHeaders(auth: true, role: 'client'))
-        .timeout(const Duration(seconds: 15));
+    Future<Map<String, dynamic>> attempt(Uri uri) async {
+      final res = await http
+          .get(uri, headers: _jsonHeaders(auth: true, role: 'client'))
+          .timeout(const Duration(seconds: 15));
 
-    if (res.statusCode == 200) {
-      final decoded = jsonDecode(res.body);
-      if (decoded is Map<String, dynamic>) return decoded;
-      throw Exception("Formato inesperado al consultar cliente.");
+      dynamic decoded;
+      try {
+        decoded = res.body.isNotEmpty ? jsonDecode(res.body) : null;
+      } catch (_) {
+        decoded = null;
+      }
+
+      if (res.statusCode == 200) {
+        if (decoded is Map<String, dynamic>) return decoded;
+        throw Exception("Formato inesperado al consultar cliente.");
+      }
+      if (res.statusCode == 404) {
+        throw Exception("Cliente no encontrado (404).");
+      }
+      if (res.statusCode == 400) {
+        throw Exception(_msg(decoded, fallback: "Petición inválida al consultar cliente (400)."));
+      }
+      if (res.statusCode == 403) {
+        throw Exception("No autorizado. Verifica el token (403).");
+      }
+      throw Exception(
+        "Error consultando cliente (${res.statusCode}): ${res.body}",
+      );
     }
-    if (res.statusCode == 404) {
-      throw Exception("Cliente no encontrado (404).");
+
+    Exception? firstError;
+    try {
+      return await attempt(_absolute("/api/Clientes/$id"));
+    } catch (e) {
+      firstError = e is Exception ? e : Exception(e.toString());
     }
-    throw Exception(
-      "Error consultando cliente (${res.statusCode}): ${res.body}",
-    );
+
+    try {
+      return await attempt(_u("/clients/$id"));
+    } catch (e) {
+      final secondError = e is Exception ? e : Exception(e.toString());
+      throw firstError ?? secondError;
+    }
   }
 
   static Future<Map<String, dynamic>> updateClientAccount({
@@ -386,7 +491,7 @@ class ApiService {
     final res = await http
         .post(
           _u("/workers/services/$serviceId/offers"),
-          headers: _jsonHeaders(auth: true, role: 'client'),
+          headers: _jsonHeaders(auth: true, role: 'worker'),
           body: jsonEncode({
             "workerId": workerId,
             // Backend espera 'monto'. Si tu backend usa 'precio', avísame para revertir.
@@ -429,7 +534,7 @@ class ApiService {
     final res = await http
         .get(
           _u("/workers/$workerId/offers/pending"),
-          headers: _jsonHeaders(auth: true, role: 'client'),
+          headers: _jsonHeaders(auth: true, role: 'worker'),
         )
         .timeout(const Duration(seconds: 15));
 
@@ -446,18 +551,16 @@ class ApiService {
     );
   }
 
-  /// Responder a una oferta: ACCEPT | REJECT | COUNTER (con nuevo precio opcional)
-  /// Endpoint sugerido: POST /api/v1/offers/{offerId}/respond
-  static Future<Map<String, dynamic>> respondOffer({
+  /// Cliente acepta o rechaza una oferta en negociación.
+  /// Endpoint: POST /api/v1/offers/{offerId}/respond
+  static Future<Map<String, dynamic>> clientRespondOffer({
     required int offerId,
-    required String action, // ACCEPT | REJECT | COUNTER
-    double? precio,
+    required String action, // ACCEPT | REJECT
     String? mensaje,
   }) async {
     final body = <String, dynamic>{
       "action": action.toUpperCase(),
-      if (precio != null) "precio": precio,
-      if (mensaje != null && mensaje.trim().isNotEmpty) "mensaje": mensaje,
+      if (mensaje != null && mensaje.trim().isNotEmpty) "mensaje": mensaje.trim(),
     };
 
     final res = await http
@@ -467,7 +570,78 @@ class ApiService {
           body: jsonEncode(body),
         )
         .timeout(const Duration(seconds: 15));
-    return _processResponse(res, "respuesta de oferta");
+    return _processResponse(res, "respuesta del cliente");
+  }
+
+  /// Cliente envía una contraoferta con nuevo monto/mensaje.
+  /// Endpoint: POST /api/v1/offers/{offerId}/counter
+  static Future<Map<String, dynamic>> clientCounterOffer({
+    required int offerId,
+    required double monto,
+    String? mensaje,
+  }) async {
+    final body = <String, dynamic>{
+      "monto": monto,
+      "precio": monto,
+      if (mensaje != null && mensaje.trim().isNotEmpty) "mensaje": mensaje.trim(),
+    };
+
+    final res = await http
+        .post(
+          _u("/offers/$offerId/counter"),
+          headers: _jsonHeaders(auth: true, role: 'client'),
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 15));
+    return _processResponse(res, "contraoferta del cliente");
+  }
+
+  /// Trabajador responde (acepta o rechaza) una oferta en negociación.
+  /// Endpoint: POST /api/v1/offers/{offerId}/worker/respond
+  static Future<Map<String, dynamic>> workerRespondOffer({
+    required int offerId,
+    required String action, // ACCEPT | REJECT
+    double? monto,
+    String? mensaje,
+  }) async {
+    final body = <String, dynamic>{
+      "action": action.toUpperCase(),
+      if (monto != null) "monto": monto,
+      if (monto != null) "precio": monto,
+      if (mensaje != null && mensaje.trim().isNotEmpty) "mensaje": mensaje.trim(),
+    };
+
+    final res = await http
+        .post(
+          _u("/offers/$offerId/worker/respond"),
+          headers: _jsonHeaders(auth: true, role: 'worker'),
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 15));
+    return _processResponse(res, "respuesta del trabajador");
+  }
+
+  /// Trabajador envía una contraoferta con nuevo monto/mensaje.
+  /// Endpoint: POST /api/v1/offers/{offerId}/worker/counter
+  static Future<Map<String, dynamic>> workerCounterOffer({
+    required int offerId,
+    required double monto,
+    String? mensaje,
+  }) async {
+    final body = <String, dynamic>{
+      "monto": monto,
+      "precio": monto,
+      if (mensaje != null && mensaje.trim().isNotEmpty) "mensaje": mensaje.trim(),
+    };
+
+    final res = await http
+        .post(
+          _u("/offers/$offerId/worker/counter"),
+          headers: _jsonHeaders(auth: true, role: 'worker'),
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 15));
+    return _processResponse(res, "contraoferta del trabajador");
   }
 
   static Future<List<Map<String, dynamic>>> getServicesByClientPublic(
@@ -570,22 +744,56 @@ class ApiService {
   }
 
   /// DELETE /api/v1/clients/services/{id}  (privada)
-  static Future<void> deleteService(int id) async {
+  static Future<Map<String, dynamic>> deleteService(int id) async {
     final res = await http
-        .delete(_u("/clients/services/$id"), headers: _jsonHeaders(auth: true, role: 'client'))
+        .delete(
+          _u("/clients/services/$id"),
+          headers: _jsonHeaders(auth: true, role: 'client'),
+        )
         .timeout(const Duration(seconds: 15));
 
+    Map<String, dynamic> _normalize(dynamic decoded, {bool defaultSuccess = true}) {
+      if (decoded is Map<String, dynamic>) {
+        final success = decoded["exitoso"] ?? decoded["success"] ?? defaultSuccess;
+        final message = decoded["mensaje"] ?? decoded["message"] ?? (success == true ? "Servicio eliminado." : "No fue posible eliminar el servicio.");
+        return {
+          ...decoded,
+          "exitoso": success == true,
+          "mensaje": message.toString(),
+        };
+      }
+      final msg = decoded?.toString().trim();
+      return {
+        "exitoso": defaultSuccess,
+        if (msg != null && msg.isNotEmpty) "mensaje": msg,
+      };
+    }
+
     if (res.statusCode == 204 || res.statusCode == 200) {
-      return;
+      dynamic decoded;
+      try {
+        decoded = res.body.isNotEmpty ? jsonDecode(res.body) : null;
+      } catch (_) {
+        decoded = null;
+      }
+      return _normalize(decoded, defaultSuccess: true);
     }
 
     if (res.statusCode == 403) {
       throw Exception("No autorizado. Verifica el token (403).");
     }
+    if (res.statusCode == 409) {
+      dynamic decoded;
+      try {
+        decoded = res.body.isNotEmpty ? jsonDecode(res.body) : null;
+      } catch (_) {
+        decoded = null;
+      }
+      final normalized = _normalize(decoded, defaultSuccess: false);
+      throw Exception(normalized["mensaje"] ?? "Solo los servicios pendientes pueden eliminarse (409).");
+    }
 
-    throw Exception(
-      "Error eliminando servicio (${res.statusCode}): ${res.body}",
-    );
+    throw Exception("Error eliminando servicio (${res.statusCode}): ${res.body}");
   }
 
   // ==========================================================

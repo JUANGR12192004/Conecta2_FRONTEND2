@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart'; // <-- ajusta la ruta si es distinta
+import '../utils/categories.dart';
 
 class RegisterWorkerPage extends StatefulWidget {
   const RegisterWorkerPage({super.key});
@@ -17,12 +18,16 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
   final _passCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
-  final _serviceCtrl = TextEditingController();
 
   bool _termsAccepted = false;
   bool _loading = false;
   bool _obscurePass = true;
   bool _obscureConfirm = true;
+
+  List<String> _categories = [];
+  bool _categoriesLoading = false;
+  String? _categoriesError;
+  String? _selectedCategory;
 
   // Si en el futuro decides mapear errores por campo
   Map<String, String> fieldErrors = {};
@@ -42,6 +47,56 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
     setState(() => fieldErrors = {});
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _loadCategories();
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() {
+      _categoriesLoading = true;
+      _categoriesError = null;
+    });
+
+    try {
+      final list = await ApiService.getPublicServiceCategories();
+      if (!mounted) return;
+      final deduped = List<String>.from(list.toSet());
+      deduped.sort((a, b) => categoryDisplayLabel(a).compareTo(categoryDisplayLabel(b)));
+      setState(() {
+        _categories = deduped;
+        _categoriesLoading = false;
+        if (!_categories.contains(_selectedCategory)) {
+          _selectedCategory = null;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      final fallback = List<String>.from(kServiceCategoryLabels.keys);
+      fallback.sort((a, b) => categoryDisplayLabel(a).compareTo(categoryDisplayLabel(b)));
+      setState(() {
+        _categoriesLoading = false;
+        _categories = fallback;
+        if (!_categories.contains(_selectedCategory)) {
+          _selectedCategory = null;
+        }
+        _categoriesError = fallback.isEmpty
+            ? msg
+            : "Categorias cargadas localmente. Detalle: $msg";
+      });
+      if (fallback.isEmpty) {
+        _showSnack("No se pudieron cargar las categorias: $msg");
+      } else {
+        _showSnack(
+          "No se pudieron cargar las categorias desde el servidor. "
+          "Se usarán valores locales.",
+        );
+      }
+    }
+  }
+
   Future<void> _register() async {
     _clearFieldErrors();
 
@@ -55,14 +110,36 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
       return;
     }
 
-    setState(() => _loading = true);
+    if (_categoriesLoading) {
+      _showSnack("Espera a que carguen las categorias.");
+      return;
+    }
+    if (_categories.isEmpty) {
+      _showSnack("No hay categorias disponibles.");
+      return;
+    }
+    if (_selectedCategory == null || _selectedCategory!.isEmpty) {
+      _showSnack("Selecciona una categoria.");
+      return;
+    }
+
+    final categoriaEnum = normalizeCategoryValue(_selectedCategory);
+    if (categoriaEnum.isEmpty) {
+      _showSnack("Categoria seleccionada invalida.");
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _selectedCategory = categoriaEnum;
+    });
 
     try {
       final resp = await ApiService.registerWorker(
         nombreCompleto: _nameCtrl.text.trim(),
         correo: _emailCtrl.text.trim(),
         celular: _phoneCtrl.text.trim(),
-        areaServicio: _serviceCtrl.text.trim(),
+        categoriaServicio: categoriaEnum,
         contrasena: _passCtrl.text,
         confirmarContrasena: _confirmCtrl.text,
       );
@@ -108,7 +185,6 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
     _passCtrl.dispose();
     _confirmCtrl.dispose();
     _phoneCtrl.dispose();
-    _serviceCtrl.dispose();
     super.dispose();
   }
 
@@ -246,17 +322,49 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
                           _fieldError("celular"),
                           const SizedBox(height: 14),
 
-                          // Área de servicio
-                          TextFormField(
-                            controller: _serviceCtrl,
+                          // Categoria de servicio
+                          DropdownButtonFormField<String>(
+                            value: _selectedCategory,
+                            items: _categories
+                                .map(
+                                  (c) => DropdownMenuItem(
+                                    value: c,
+                                    child: Text(categoryDisplayLabel(c)),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (_categoriesLoading || _loading)
+                                ? null
+                                : (value) => setState(
+                                      () => _selectedCategory = value == null
+                                          ? null
+                                          : normalizeCategoryValue(value),
+                                    ),
                             decoration: const InputDecoration(
-                              labelText: "Área de servicio",
+                              labelText: "Categoria de servicio",
                               prefixIcon: Icon(Icons.build),
                             ),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? "Ingresa tu área de servicio" : null,
+                            validator: (value) {
+                              if (_categoriesLoading) return "Categorias cargando...";
+                              if (_categories.isEmpty) return "No hay categorias disponibles";
+                              if (value == null || value.isEmpty) return "Selecciona una categoria";
+                              return null;
+                            },
                           ),
-                          _fieldError("areaServicio"),
+                          if (_categoriesLoading)
+                            const Padding(
+                              padding: EdgeInsets.only(top: 6.0),
+                              child: LinearProgressIndicator(minHeight: 3),
+                            ),
+                          if (_categoriesError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6.0, left: 6.0),
+                              child: Text(
+                                _categoriesError!,
+                                style: const TextStyle(color: Colors.red, fontSize: 12),
+                              ),
+                            ),
+                          _fieldError("categoriaServicio"),
                           const SizedBox(height: 10),
 
                           // Términos
