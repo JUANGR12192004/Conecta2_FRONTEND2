@@ -452,6 +452,8 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
   }
 
   Future<void> _reload() async {
+    // Refresca perfil y servicios en un solo gesto
+    await _refreshProfile();
     await _loadServices();
   }
 
@@ -1100,6 +1102,11 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
             tooltip: 'Notificaciones',
             onPressed: _openNotifications,
           ),
+          IconButton(
+            icon: const Icon(Icons.refresh_outlined, color: Colors.black87),
+            tooltip: 'Actualizar',
+            onPressed: _reload,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 14),
             child: GestureDetector(onTap: _showProfileMenu, child: CircleAvatar(backgroundColor: _primary, child: Text((_currentName().isNotEmpty ? _currentName()[0] : '?').toUpperCase(), style: const TextStyle(color: Colors.white))))
@@ -1226,8 +1233,28 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                                 ],
                               ),
                             ),
-                            if (estadoUpper == 'PENDIENTE_PAGO')
+                            if (estadoUpper == 'PENDIENTE_PAGO') ...[
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: FilledButton.icon(
+                                    icon: const Icon(Icons.payment_outlined),
+                                    label: const Text('Realizar pago'),
+                                    onPressed: () {
+                                      final offerId = _asInt(pendingPayment?['offerId']);
+                                      if (offerId == null || offerId <= 0) return;
+                                      _openPaymentCheckout(
+                                        offerId: offerId,
+                                        serviceId: serviceId,
+                                        initialInfo: pendingPayment,
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
                               _buildServicePaymentBanner(serviceId, pendingPayment),
+                            ],
                           ],
                         ),
                       ),
