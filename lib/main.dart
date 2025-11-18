@@ -31,7 +31,7 @@ class MyApp extends StatelessWidget {
         Locale('es', ''), // fallback
         Locale('en', 'US'),
       ],
-      title: 'Conecta2',
+      title: 'Workify',
       theme: ThemeData(
         primarySwatch: Colors.blue,
         inputDecorationTheme: InputDecorationTheme(
@@ -94,7 +94,7 @@ class _HomePageState extends State<HomePage> {
                 Image.asset("assets/LogoConecta2.png", height: 140),
                 const SizedBox(height: 24),
                 const Text(
-                  "Bienvenido a Conecta2",
+                  "Bienvenido a Workify",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),

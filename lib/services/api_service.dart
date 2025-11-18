@@ -689,49 +689,6 @@ class ApiService {
   // PAGOS / PASARELA
   // ==========================
 
-  /// Obtiene la información del intent de pago asociado a una oferta.
-  /// Endpoint: GET /api/v1/payments/offers/{offerId}?refresh=false
-  static Future<Map<String, dynamic>> getOfferPaymentInfo({
-    required int offerId,
-    bool refresh = false,
-  }) async {
-    final res = await http
-        .get(
-          _u(
-            "/payments/offers/$offerId",
-            query: {"refresh": refresh ? "true" : "false"},
-          ),
-          headers: _jsonHeaders(auth: true, role: 'client'),
-        )
-        .timeout(const Duration(seconds: 15));
-
-    if (res.statusCode == 200) {
-      final decoded = res.body.isNotEmpty ? jsonDecode(res.body) : {};
-      if (decoded is Map<String, dynamic>) return decoded;
-      throw Exception("Respuesta inesperada del backend de pagos.");
-    }
-
-    if (res.statusCode == 403) {
-      throw Exception("No autorizado para consultar este pago (403).");
-    }
-
-    throw Exception(
-      "Error obteniendo estado del pago (${res.statusCode}): ${res.body}",
-    );
-  }
-
-  /// Fuerza un refresh manual cuando el webhook aún no llega.
-  /// Endpoint: POST /api/v1/payments/offers/{offerId}/refresh
-  static Future<Map<String, dynamic>> refreshOfferPayment(int offerId) async {
-    final res = await http
-        .post(
-          _u("/payments/offers/$offerId/refresh"),
-          headers: _jsonHeaders(auth: true, role: 'client'),
-        )
-        .timeout(const Duration(seconds: 15));
-    return _processResponse(res, "actualización de pago");
-  }
-
   static Future<List<Map<String, dynamic>>> getServicesByClientPublic(
     int clientId,
   ) async {
@@ -931,5 +888,6 @@ class ApiService {
     return fallback;
   }
 }
+
 
 

@@ -133,6 +133,48 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     return error.toString().replaceFirst('Exception: ', '');
   }
 
+  String? _normalizeWorkerName(dynamic raw) {
+    if (raw == null) return null;
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return null;
+      return trimmed;
+    }
+    if (raw is Map) {
+      const keys = [
+        'nombreCompleto',
+        'nombre',
+        'fullName',
+        'workerName',
+        'trabajador',
+        'assignedWorker',
+        'assignedWorkerName',
+      ];
+      for (final key in keys) {
+        final normalized = _normalizeWorkerName(raw[key]);
+        if (normalized != null) return normalized;
+      }
+    }
+    return null;
+  }
+
+  String? _workerNameFromPaymentInfo() {
+    if (_paymentInfo == null) return null;
+    final candidates = <dynamic>[
+      _paymentInfo?['workerName'],
+      _paymentInfo?['trabajador'],
+      _paymentInfo?['assignedWorker'],
+      _paymentInfo?['assignedWorkerName'],
+      _paymentInfo?['nombreTrabajador'],
+      _paymentInfo?['worker'],
+    ];
+    for (final candidate in candidates) {
+      final normalized = _normalizeWorkerName(candidate);
+      if (normalized != null) return normalized;
+    }
+    return null;
+  }
+
   String _statusUpper() {
     final status = _paymentInfo?['paymentStatus'] ?? _paymentInfo?['status'];
     if (status == null) return '';
@@ -175,7 +217,8 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
 
   String? _clientSecret() {
     return _paymentInfo?['paymentClientSecret']?.toString() ??
-        _paymentInfo?['clientSecret']?.toString();
+        _paymentInfo?['clientSecret']?.toString() ??
+        _paymentInfo?['client_secret']?.toString();
   }
 
   bool get _canSubmit {
@@ -265,21 +308,27 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     }
   }
 
-  Future<void> _createIntent() async {
-    final amountCents = _amountInCents();
-    if (amountCents == null || amountCents <= 0) {
-      throw Exception('Monto inválido para crear el pago.');
-    }
-    _requireClientAuth();
-    final response = await ApiServicePayment.createIntent(
-      amount: amountCents,
-      description: _descriptionForIntent(),
-      paymentMethodTypes: ['card'],
-      metadata: _metadataForIntent(),
-    );
-    await _applyGatewayResponse(response);
-  }
-
+  Future<void> _createIntent() async {
+    if (widget.offerId <= 0) {
+      throw Exception('Oferta inv�lida para crear el pago.');
+    }
+    _requireClientAuth();
+    final overrides = {
+      'description': _descriptionForIntent(),
+      'payment_method_types': ['card'],
+      'metadata': _metadataForIntent(),
+    };
+    final response = await ApiServicePayment.createIntent(
+      offerId: widget.offerId,
+      overrides: overrides,
+    );
+    await _applyGatewayResponse({
+      'paymentIntentId': response.intentId,
+      'paymentClientSecret': response.clientSecret,
+      'paymentStatus': response.status,
+      'metadata': overrides['metadata'],
+    });
+  }
   Future<void> _applyGatewayResponse(Map<String, dynamic> response) async {
     if (response.isEmpty) return;
     final normalized = _normalizeGatewayIntent(response);
@@ -348,6 +397,15 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
   Widget _buildStatusTile() {
     final status = _statusUpper();
     final color = _statusColor();
+    final assignedWorker = _workerNameFromPaymentInfo();
+    final displayStatus = status == 'SUCCEEDED' ? 'Asignado' : status;
+    final description = status == 'SUCCEEDED'
+        ? (assignedWorker != null
+            ? 'El servicio quedó asignado a $assignedWorker.'
+            : 'Tu pago fue confirmado por la pasarela.')
+        : status == 'FAILED'
+            ? 'El intento de pago fue rechazado. Revisa los datos o intenta nuevamente.'
+            : 'Ingresa los datos de la tarjeta simulada y presiona "Pagar".';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -373,15 +431,9 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(status, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+                Text(displayStatus, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                Text(
-                  status == 'SUCCEEDED'
-                      ? 'Tu pago fue confirmado por la pasarela.'
-                      : status == 'FAILED'
-                          ? 'El intento de pago fue rechazado. Revisa los datos o intenta nuevamente.'
-                          : 'Ingresa los datos de la tarjeta simulada y presiona "Pagar".',
-                ),
+                Text(description),
               ],
             ),
           ),

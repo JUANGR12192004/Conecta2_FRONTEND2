@@ -1,11 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_applicatiomconecta2/services/gateway_helper.dart';
+import 'package:flutter_applicatiomconecta2/services/payment_intent_response.dart';
 
 void main() {
   test('PaymentIntentResponse.fromJson extracts intent and status', () {
     final json = {
-      'intentId': 'pi_ABC',
-      'status': 'REQUIRES_ACTION',
+      'payment_intent_id': 'pi_ABC',
+      'payment_status': 'REQUIRES_ACTION',
+      'client_secret': 'secret_key',
+      'payment_metadata': 'meta',
     };
     final resp = PaymentIntentResponse.fromJson(json);
     expect(resp.intentId, 'pi_ABC');

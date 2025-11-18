@@ -31,7 +31,7 @@ class _HomePageState extends State<HomePage> {
                 Image.asset("assets/LogoConecta2.png", height: 150),
                 const SizedBox(height: 28),
                 const Text(
-                  "Bienvenido a Conecta2",
+                  "Bienvenido a Workify",
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 ),

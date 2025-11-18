@@ -15,7 +15,7 @@ void main() {
     await tester.pumpWidget(const MyApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Bienvenido a Conecta2'), findsOneWidget);
+    expect(find.text('Bienvenido a Workify'), findsOneWidget);
     expect(find.text('Soy Trabajador'), findsOneWidget);
     expect(find.text('Soy Cliente'), findsOneWidget);
   });

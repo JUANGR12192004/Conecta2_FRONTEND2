@@ -5,12 +5,11 @@ import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
 import '../services/api_service_payment.dart';
-import '../services/api_service_payment.dart';
 import '../widgets/account_management_sheet.dart';
 import '../widgets/profile_popover.dart';
 import '../utils/categories.dart';
 import '../widgets/current_location_map.dart';
-import '../widgets/payment_checkout_helper.dart';
+import '../widgets/payment_checkout_sheet.dart';
 
 const _primary = Color(0xFF2E7D32);
 
@@ -21,7 +20,8 @@ class ClientHome extends StatefulWidget {
   State<ClientHome> createState() => _ClientHomeState();
 }
 
-class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateMixin {
+class _ClientHomeState extends State<ClientHome>
+    with SingleTickerProviderStateMixin {
   late TabController _tab;
 
   Map<String, dynamic>? _profile;
@@ -43,7 +43,6 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
   Timer? _offersPollTimer;
   final Map<int, Map<String, dynamic>> _pendingPaymentsByService = {};
   StateSetter? _notificationsSetState;
-  final Set<int> _paymentPendingNotified = {};
 
   final List<String> _categorias = kServiceCategoryLabels.keys.toList();
 
@@ -200,14 +199,20 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
   }
 
   DateTime? _serviceDateFromService(Map<String, dynamic> service) {
-    final raw = (service['fechaEstimada'] ?? service['fecha'] ?? service['fechaServicio'] ?? '').toString();
+    final raw = (service['fechaEstimada'] ??
+            service['fecha'] ??
+            service['fechaServicio'] ??
+            '')
+        .toString();
     if (raw.isEmpty) return null;
     final parsed = DateTime.tryParse(raw);
     if (parsed != null) return parsed;
     final milliseconds = int.tryParse(raw);
-    if (milliseconds != null) return DateTime.fromMillisecondsSinceEpoch(milliseconds);
+    if (milliseconds != null)
+      return DateTime.fromMillisecondsSinceEpoch(milliseconds);
     final asDouble = double.tryParse(raw);
-    if (asDouble != null) return DateTime.fromMillisecondsSinceEpoch(asDouble.toInt());
+    if (asDouble != null)
+      return DateTime.fromMillisecondsSinceEpoch(asDouble.toInt());
     return null;
   }
 
@@ -216,7 +221,11 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     for (final service in _services) {
       final id = _serviceIdFromService(service);
       if (id != null && id == serviceId) {
-        final title = (service['titulo'] ?? service['nombre'] ?? service['tituloServicio'] ?? '').toString();
+        final title = (service['titulo'] ??
+                service['nombre'] ??
+                service['tituloServicio'] ??
+                '')
+            .toString();
         if (title.isNotEmpty) return title;
       }
     }
@@ -226,6 +235,67 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
   Map<String, dynamic>? _pendingPaymentForService(int? serviceId) {
     if (serviceId == null) return null;
     return _pendingPaymentsByService[serviceId];
+  }
+
+  int? _offerIdForService(int? serviceId) {
+    if (serviceId == null) return null;
+    final pending = _pendingPaymentsByService[serviceId];
+    final candidate = _asInt(
+      pending?['offerId'] ??
+          pending?['ofertaId'] ??
+          pending?['offer_id'],
+    );
+    if (candidate != null) return candidate;
+    for (final offer in _offers) {
+      final sid = _serviceIdFromOffer(offer);
+      if (sid != null && sid == serviceId) {
+        final negotiation = (offer['estadoNegociacion'] ?? offer['estado'] ?? '')
+            .toString()
+            .toUpperCase();
+        if (negotiation == 'PENDIENTE_DE_PAGO' || negotiation == 'ACEPTADA') {
+          final id = _asInt(offer['id']);
+          if (id != null) return id;
+        }
+      }
+    }
+    return null;
+  }
+
+  Future<int?> _resolveOfferIdForService(int serviceId) async {
+    final direct = _offerIdForService(serviceId);
+    if (direct != null) return direct;
+    await _fetchOffers();
+    return _offerIdForService(serviceId);
+  }
+
+  Future<void> _startPaymentFlow(int? serviceId, {String? serviceTitle}) async {
+    if (serviceId == null) {
+      _showClientNotification(
+        'No fue posible determinar el servicio para el pago.',
+        background: Colors.red,
+      );
+      return;
+    }
+    final offerId = await _resolveOfferIdForService(serviceId);
+    if (offerId == null) {
+      _showClientNotification(
+        'No fue posible encontrar la oferta asociada al servicio.',
+        background: Colors.red,
+      );
+      return;
+    }
+    final normalized = await _createIntentAndQueuePendingPayment(
+      offerId: offerId,
+      serviceId: serviceId,
+      serviceTitle: serviceTitle ?? _serviceTitleById(serviceId),
+    );
+    if (normalized != null) {
+      await _openPaymentCheckout(
+        offerId: offerId,
+        serviceId: serviceId,
+        initialInfo: normalized,
+      );
+    }
   }
 
   Map<String, dynamic>? _stringKeyedMap(dynamic raw) {
@@ -256,19 +326,30 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     }
 
     final serviceId = _asInt(
-      map['serviceId'] ?? map['servicioId'] ?? map['service_id'] ?? fallbackServiceId,
+      map['serviceId'] ??
+          map['servicioId'] ??
+          map['service_id'] ??
+          fallbackServiceId,
     );
     final offerId = _asInt(
       map['offerId'] ?? map['ofertaId'] ?? map['oferta_id'] ?? fallbackOfferId,
     );
 
-    final paymentIntentId = map['paymentIntentId'] ?? map['paymentIntent'] ?? map['intentId'];
-    final clientSecret = map['paymentClientSecret'] ?? map['clientSecret'];
-    final status = (map['paymentStatus'] ?? map['payment_state'] ?? map['status'] ?? '').toString();
+    final paymentIntentId =
+        map['paymentIntentId'] ?? map['paymentIntent'] ?? map['intentId'];
+    final clientSecret = map['paymentClientSecret'] ??
+        map['clientSecret'] ??
+        map['client_secret'];
+    final status =
+        (map['paymentStatus'] ?? map['payment_state'] ?? map['status'] ?? '')
+            .toString();
     final amount = _asDouble(map['amount'] ?? map['monto'] ?? map['precio']);
     final currency = map['currency'] ?? map['moneda'];
-    final serviceTitle = (map['serviceTitle'] ?? map['tituloServicio'] ?? fallbackServiceTitle ?? '').toString();
-    final publishableKey = map['paymentPublishableKey'] ?? map['publishableKey'];
+    final serviceTitle = (map['serviceTitle'] ??
+            map['tituloServicio'] ??
+            fallbackServiceTitle ??
+            '')
+        .toString();
 
     return {
       ...map,
@@ -280,7 +361,6 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
       if (amount != null) 'amount': amount,
       if (currency != null) 'currency': currency,
       if (serviceTitle.isNotEmpty) 'serviceTitle': serviceTitle,
-      if (publishableKey != null) 'paymentPublishableKey': publishableKey,
     };
   }
 
@@ -290,13 +370,12 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     int? fallbackServiceId,
     String? fallbackServiceTitle,
   }) async {
-    final intentId = current['paymentIntentId'] ??
-        current['paymentIntent'] ??
-        current['intentId'] ??
-        current['id'];
-    if (intentId == null) return;
+    final intentId = current['paymentIntentId']?.toString() ??
+        current['payment_intent_id']?.toString() ??
+        current['id']?.toString();
+    if (intentId == null || intentId.isEmpty) return;
     final response =
-        await ApiServicePayment.getPaymentStatus(paymentIntentId: intentId.toString());
+        await ApiServicePayment.getPaymentStatus(paymentIntentId: intentId);
     final combined = <String, dynamic>{
       ...current,
       ...response,
@@ -360,7 +439,11 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
   }
 
   String _serviceStateUpper(Map<String, dynamic> service) {
-    final raw = (service['estado'] ?? service['estadoServicio'] ?? service['status'] ?? '').toString();
+    final raw = (service['estado'] ??
+            service['estadoServicio'] ??
+            service['status'] ??
+            '')
+        .toString();
     return raw.toUpperCase();
   }
 
@@ -369,7 +452,11 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
   }
 
   String _serviceTitle(Map<String, dynamic> service) {
-    final raw = (service['titulo'] ?? service['nombre'] ?? service['tituloServicio'] ?? '').toString();
+    final raw = (service['titulo'] ??
+            service['nombre'] ??
+            service['tituloServicio'] ??
+            '')
+        .toString();
     if (raw.isNotEmpty) return raw;
     return 'Servicio';
   }
@@ -394,7 +481,8 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     if (serviceDate == null) return;
     final today = DateTime.now();
     final todayDay = DateTime(today.year, today.month, today.day);
-    final targetDay = DateTime(serviceDate.year, serviceDate.month, serviceDate.day);
+    final targetDay =
+        DateTime(serviceDate.year, serviceDate.month, serviceDate.day);
 
     if (targetDay == todayDay) {
       if (!_expiryWarningIds.add(serviceId)) return;
@@ -425,7 +513,8 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
       } catch (e) {
         if (!mounted) return;
         _autoDeletedServiceIds.remove(serviceId);
-        _showClientNotification('No fue posible eliminar "$title": $e', background: Colors.red);
+        _showClientNotification('No fue posible eliminar "$title": $e',
+            background: Colors.red);
       }
     }
   }
@@ -433,18 +522,16 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
   void _updateLocalServiceState(int? serviceId, String newState) {
     if (serviceId == null) return;
     setState(() {
-      _services = _services
-          .map((svc) {
-            final id = _asInt(svc['id']);
-            if (id != null && id == serviceId) {
-              final updated = Map<String, dynamic>.from(svc);
-              updated['estado'] = newState;
-              updated['estadoServicio'] = newState;
-              return updated;
-            }
-            return svc;
-          })
-          .toList();
+      _services = _services.map((svc) {
+        final id = _asInt(svc['id']);
+        if (id != null && id == serviceId) {
+          final updated = Map<String, dynamic>.from(svc);
+          updated['estado'] = newState;
+          updated['estadoServicio'] = newState;
+          return updated;
+        }
+        return svc;
+      }).toList();
     });
   }
 
@@ -461,8 +548,10 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     return '';
   }
 
-  String _currentName() => _stringFromSources(['nombreCompleto', 'nombre', 'fullName']);
-  String _currentEmail() => _stringFromSources(['correo', 'email', 'correoElectronico']);
+  String _currentName() =>
+      _stringFromSources(['nombreCompleto', 'nombre', 'fullName']);
+  String _currentEmail() =>
+      _stringFromSources(['correo', 'email', 'correoElectronico']);
 
   DateTime? _parseServiceDate(dynamic raw) {
     if (raw == null) return null;
@@ -483,9 +572,14 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
   }
 
   bool _isServiceExpired(Map<String, dynamic> service) {
-    final estadoRaw = (service['estado'] ?? service['estadoServicio'] ?? service['status'] ?? '').toString();
+    final estadoRaw = (service['estado'] ??
+            service['estadoServicio'] ??
+            service['status'] ??
+            '')
+        .toString();
     if (estadoRaw.toUpperCase() == 'CANCELADO') return true;
-    final date = _parseServiceDate(service['fechaEstimada'] ?? service['fecha']);
+    final date =
+        _parseServiceDate(service['fechaEstimada'] ?? service['fecha']);
     return _isDateExpired(date);
   }
 
@@ -536,7 +630,9 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     try {
       final data = await ApiService.fetchClientById(id);
       if (!mounted) return;
-      setState(() { _profile = data; });
+      setState(() {
+        _profile = data;
+      });
     } catch (e) {
       if (!mounted) return;
       _showClientNotification(
@@ -563,23 +659,35 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
   }
 
   Future<void> _fetchOffers() async {
-    final id = _clientId; if (id == null) return;
-    setState(() { _offersLoading = true; _offersError = null; });
+    final id = _clientId;
+    if (id == null) return;
+    setState(() {
+      _offersLoading = true;
+      _offersError = null;
+    });
     try {
       final list = await ApiService.getClientPendingOffers(id);
       if (!mounted) return;
-      setState(() { _offers = list; _offersLoading = false; });
+      setState(() {
+        _offers = list;
+        _offersLoading = false;
+      });
       _processAcceptedOffers(list);
       _syncPendingPaymentsFromOffers(list);
     } catch (e) {
       if (!mounted) return;
-      setState(() { _offersError = e.toString().replaceFirst('Exception: ', ''); _offersLoading = false; });
+      setState(() {
+        _offersError = e.toString().replaceFirst('Exception: ', '');
+        _offersLoading = false;
+      });
     }
   }
 
   void _processAcceptedOffers(List<Map<String, dynamic>> offers) {
     for (final offer in offers) {
-      final estadoRaw = (offer['estadoNegociacion'] ?? offer['estado'] ?? '').toString().toUpperCase();
+      final estadoRaw = (offer['estadoNegociacion'] ?? offer['estado'] ?? '')
+          .toString()
+          .toUpperCase();
       if (estadoRaw == 'ACEPTADA') {
         final serviceId = _serviceIdFromOffer(offer);
         if (serviceId != null) {
@@ -589,7 +697,8 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
             fallbackOfferId: _asInt(offer['id']),
             fallbackServiceTitle: _serviceTitleById(serviceId),
           );
-          final statusUpper = _paymentStatusUpper(paymentInfo?['paymentStatus']);
+          final statusUpper =
+              _paymentStatusUpper(paymentInfo?['paymentStatus']);
           if (statusUpper == 'SUCCEEDED') {
             _updateLocalServiceState(serviceId, 'ASIGNADO');
           } else {
@@ -607,7 +716,8 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     final serviceId = _asInt(info['serviceId'] ?? info['servicioId']);
     if (serviceId == null) return;
     setState(() {
-      final statusUpper = _paymentStatusUpper(info['paymentStatus'] ?? info['status']);
+      final statusUpper =
+          _paymentStatusUpper(info['paymentStatus'] ?? info['status']);
       if (statusUpper == 'SUCCEEDED' || statusUpper == 'NOT_REQUIRED') {
         _pendingPaymentsByService.remove(serviceId);
       } else {
@@ -616,37 +726,72 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
           ...existing,
           ...info,
           'serviceId': serviceId,
-          'serviceTitle': info['serviceTitle'] ?? existing['serviceTitle'] ?? _serviceTitleById(serviceId),
+          'serviceTitle': info['serviceTitle'] ??
+              existing['serviceTitle'] ??
+              _serviceTitleById(serviceId),
         };
       }
     });
     _notificationsSetState?.call(() {});
-    _maybeNotifyPendingPayment(serviceId, info);
   }
 
-  void _maybeNotifyPendingPayment(int serviceId, Map<String, dynamic> info) {
-    final statusUpper = _paymentStatusUpper(info['paymentStatus'] ?? info['status']);
-    if (statusUpper != 'PENDING') return;
-    if (_paymentPendingNotified.contains(serviceId)) return;
-    _paymentPendingNotified.add(serviceId);
-    final offerId = _asInt(info['offerId'] ?? info['ofertaId']);
-    final title = (info['serviceTitle'] ?? _serviceTitleById(serviceId) ?? 'tu servicio').toString();
+  Future<Map<String, dynamic>?> _createIntentAndQueuePendingPayment({
+    required int offerId,
+    int? serviceId,
+    String? serviceTitle,
+  }) async {
+    try {
+      final response = await ApiServicePayment.createIntent(
+        offerId: offerId,
+      );
+      final intentCandidate = {
+        'paymentIntentId': response.intentId,
+        'clientSecret': response.clientSecret,
+        'paymentStatus': response.status,
+        'paymentMetadata': response.paymentMetadata,
+        'offerId': offerId,
+        if (serviceId != null) 'serviceId': serviceId,
+        if (serviceTitle != null) 'serviceTitle': serviceTitle,
+      };
+      final normalized = _normalizePaymentInfo(
+        intentCandidate,
+        fallbackOfferId: offerId,
+        fallbackServiceTitle: serviceTitle,
+        fallbackServiceId: serviceId,
+      );
+      if (normalized != null) {
+        _queuePaymentInfoUpdate(normalized);
+        return normalized;
+      }
+      _queuePaymentInfoUpdate(intentCandidate);
+      return intentCandidate;
+    } on PaymentGatewayException catch (e) {
+      _showPaymentError(_extractPaymentGatewayMessage(e, fallback: 'No se pudo preparar el pago.'));
+    } catch (e) {
+      _showPaymentError('Error preparando el pago: $e');
+    }
+    return null;
+  }
+
+  String _extractPaymentGatewayMessage(PaymentGatewayException error, {required String fallback}) {
+    try {
+      final decoded = jsonDecode(error.body);
+      if (decoded is Map<String, dynamic>) {
+        if (decoded['error'] is String) return decoded['error'];
+        if (decoded['mensaje'] is String) return decoded['mensaje'];
+        if (decoded['message'] is String) return decoded['message'];
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
+  void _showPaymentError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('El trabajador aceptó $title. Procede al pago.'),
-        action: SnackBarAction(
-          label: 'Pagar',
-          onPressed: () {
-            if (offerId != null && offerId > 0) {
-              _openPaymentCheckout(
-                offerId: offerId,
-                serviceId: serviceId,
-                initialInfo: info,
-              );
-            }
-          },
-        ),
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Colors.red,
       ),
     );
   }
@@ -658,7 +803,8 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
         offer,
         fallbackOfferId: _asInt(offer['id']),
         fallbackServiceId: _serviceIdFromOffer(offer),
-        fallbackServiceTitle: (offer['serviceTitle'] ?? offer['tituloServicio'] ?? '').toString(),
+        fallbackServiceTitle:
+            (offer['serviceTitle'] ?? offer['tituloServicio'] ?? '').toString(),
       );
       if (normalized != null) {
         updates.add(normalized);
@@ -678,7 +824,9 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
             ...existing,
             ...info,
             'serviceId': serviceId,
-            'serviceTitle': info['serviceTitle'] ?? existing['serviceTitle'] ?? _serviceTitleById(serviceId),
+            'serviceTitle': info['serviceTitle'] ??
+                existing['serviceTitle'] ??
+                _serviceTitleById(serviceId),
           };
         }
       }
@@ -692,22 +840,29 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     Map<String, dynamic>? initialInfo,
   }) async {
     final existing = initialInfo ?? _pendingPaymentForService(serviceId);
-    final title = (existing?['serviceTitle'] ?? _serviceTitleById(serviceId) ?? '').toString();
-    await showPaymentCheckout(
+    final title =
+        (existing?['serviceTitle'] ?? _serviceTitleById(serviceId) ?? '')
+            .toString();
+    await showModalBottomSheet<void>(
       context: context,
-      offerId: offerId,
-      serviceId: serviceId,
-      serviceTitle: title.isEmpty ? null : title,
-      initialPaymentInfo: existing,
-      onPaymentInfo: (info) {
-        _queuePaymentInfoUpdate(info);
-      },
-      onPaymentFailed: (info) {
-        _queuePaymentInfoUpdate(info);
-      },
-      onPaymentSucceeded: () async {
-        await _loadServices();
-      },
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      useSafeArea: true,
+      builder: (_) => PaymentCheckoutSheet(
+        offerId: offerId,
+        serviceId: serviceId,
+        serviceTitle: title.isEmpty ? null : title,
+        initialPaymentInfo: existing,
+        onPaymentInfo: (info) {
+          _queuePaymentInfoUpdate(info);
+        },
+        onPaymentFailed: (info) {
+          _queuePaymentInfoUpdate(info);
+        },
+        onPaymentSucceeded: () async {
+          await _loadServices();
+        },
+      ),
     );
   }
 
@@ -730,89 +885,97 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                 }));
           }
 
-              Future<void> doAccept(int id, int? serviceId) async {
-                try {
-                  final response = await ApiServicePayment.acceptOffer(
+          Future<void> doAccept(int id, int? serviceId) async {
+            try {
+              final response = await ApiServicePayment.acceptOffer(offerId: id);
+              final servicio = response['servicio'] as Map<String, dynamic>?;
+              final serviceStatus = _paymentStatusUpper(
+                servicio?['estado'] ?? servicio?['estadoServicio'],
+              );
+              final bool requiresPayment = serviceStatus == 'PENDIENTE_PAGO';
+
+              removeLocal(id);
+              final fallbackServiceTitle =
+                  (servicio?['titulo'] ?? _serviceTitleById(serviceId))
+                      ?.toString();
+
+              if (mounted && serviceId != null) {
+                _updateLocalServiceState(
+                  serviceId,
+                  requiresPayment ? 'PENDIENTE_PAGO' : 'ASIGNADO',
+                );
+              }
+
+              await _loadServices();
+
+              if (requiresPayment) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          'Oferta aceptada. Completa el pago para asignar el servicio.'),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: _primary,
+                    ),
+                  );
+                }
+                final paymentInfo = await _createIntentAndQueuePendingPayment(
+                  offerId: id,
+                  serviceId: serviceId,
+                  serviceTitle: fallbackServiceTitle,
+                );
+                if (paymentInfo != null) {
+                  await _openPaymentCheckout(
                     offerId: id,
-                    payload: {
-                      'description': 'Servicio ${serviceId ?? ''}',
-                    },
+                    serviceId: serviceId,
+                    initialInfo: paymentInfo,
                   );
-                  final paymentIntent = response['paymentIntent'];
-                  final paymentInfo = _normalizePaymentInfo(
-                    paymentIntent ?? response,
-                    fallbackOfferId: id,
-                    fallbackServiceId: serviceId,
-                    fallbackServiceTitle: _serviceTitleById(serviceId),
-                  );
-                  final statusUpper = _paymentStatusUpper(paymentInfo?['paymentStatus']);
-                  final bool requiresPayment = statusUpper.isEmpty ||
-                      statusUpper == 'PENDING' ||
-                      statusUpper == 'REQUIRES_ACTION';
-
-                  removeLocal(id);
-                  if (paymentInfo != null) {
-                    _queuePaymentInfoUpdate(paymentInfo);
-                  }
-
-                  if (mounted && serviceId != null) {
-                    _updateLocalServiceState(
-                      serviceId,
-                      requiresPayment ? 'PENDIENTE_PAGO' : 'ASIGNADO',
-                    );
-                  }
-
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(requiresPayment
-                            ? 'Oferta aceptada. Ya puedes pagar para asignar el servicio.'
-                            : 'Servicio asignado.'),
-                        behavior: SnackBarBehavior.floating,
-                        backgroundColor: _primary,
-                      ),
-                    );
-                  }
-
-                  if (requiresPayment) {
-                    await _openPaymentCheckout(
-                      offerId: id,
-                      serviceId: serviceId,
-                      initialInfo: paymentInfo,
-                    );
-                  } else {
-                    await _loadServices();
-                  }
-                } on PaymentGatewayException catch (e) {
-                  if (!mounted) return;
-                  final message = _extractErrorMessage(e, fallback: 'No se pudo responder la oferta.');
+                }
+              } else {
+                if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(message), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
-                  );
-                } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
+                    const SnackBar(
+                      content: Text('Servicio asignado'),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: _primary,
+                    ),
                   );
                 }
               }
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text('Error: $e'),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: Colors.red),
+              );
+            }
+          }
 
           Future<void> doReject(int id, int? serviceId) async {
             try {
-              await ApiService.clientRespondOffer(offerId: id, action: 'REJECT');
+              await ApiService.clientRespondOffer(
+                  offerId: id, action: 'REJECT');
               removeLocal(id);
               if (mounted && serviceId != null) {
                 _updateLocalServiceState(serviceId, 'PENDIENTE');
               }
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Oferta rechazada'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
+                  const SnackBar(
+                      content: Text('Oferta rechazada'),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: Colors.red),
                 );
               }
             } catch (e) {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
+                SnackBar(
+                    content: Text('Error: $e'),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: Colors.red),
               );
             }
           }
@@ -833,7 +996,8 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                         TextField(
                           controller: priceCtrl,
                           autofocus: true,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
                           decoration: const InputDecoration(
                             labelText: 'Nuevo precio',
                             prefixIcon: Icon(Icons.attach_money),
@@ -853,19 +1017,25 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                             padding: const EdgeInsets.only(top: 8),
                             child: Align(
                               alignment: Alignment.centerLeft,
-                              child: Text(errorText!, style: const TextStyle(color: Colors.red, fontSize: 12)),
+                              child: Text(errorText!,
+                                  style: const TextStyle(
+                                      color: Colors.red, fontSize: 12)),
                             ),
                           ),
                       ],
                     ),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(dialogCtx), child: const Text('Cancelar')),
+                      TextButton(
+                          onPressed: () => Navigator.pop(dialogCtx),
+                          child: const Text('Cancelar')),
                       TextButton(
                         onPressed: () {
-                          final raw = priceCtrl.text.trim().replaceAll(',', '.');
+                          final raw =
+                              priceCtrl.text.trim().replaceAll(',', '.');
                           final value = double.tryParse(raw);
                           if (value == null || value <= 0) {
-                            setDialogState(() => errorText = 'Ingresa un monto válido');
+                            setDialogState(
+                                () => errorText = 'Ingresa un monto válido');
                             return;
                           }
                           final note = noteCtrl.text.trim();
@@ -885,17 +1055,24 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
             if (monto == null || monto <= 0) return;
             final mensaje = payload?['mensaje'] as String?;
             try {
-              await ApiService.clientCounterOffer(offerId: id, monto: monto, mensaje: mensaje);
+              await ApiService.clientCounterOffer(
+                  offerId: id, monto: monto, mensaje: mensaje);
               removeLocal(id);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Contraoferta enviada'), behavior: SnackBarBehavior.floating, backgroundColor: _primary),
+                  const SnackBar(
+                      content: Text('Contraoferta enviada'),
+                      behavior: SnackBarBehavior.floating,
+                      backgroundColor: _primary),
                 );
               }
             } catch (e) {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
+                SnackBar(
+                    content: Text('Error: $e'),
+                    behavior: SnackBarBehavior.floating,
+                    backgroundColor: Colors.red),
               );
             }
           }
@@ -906,34 +1083,53 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8))),
+                Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                        color: Colors.black26,
+                        borderRadius: BorderRadius.circular(8))),
                 const SizedBox(height: 12),
-                const Text('Notificaciones', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const Text('Notificaciones',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
                 if (_pendingPaymentsByService.isNotEmpty) ...[
-                  const Text('Pagos pendientes', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const Text('Pagos pendientes',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
-                  ..._pendingPaymentsByService.values.map(_buildPaymentReminderCard),
+                  ..._pendingPaymentsByService.values
+                      .map(_buildPaymentReminderCard),
                   const SizedBox(height: 12),
                   const Divider(),
                   const SizedBox(height: 12),
-                  const Text('Ofertas en negociación', style: TextStyle(fontWeight: FontWeight.w700)),
+                  const Text('Ofertas en negociación',
+                      style: TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                 ],
                 if (_offersLoading && _offers.isEmpty)
-                  const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()))
+                  const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Center(child: CircularProgressIndicator()))
                 else if (_offersError != null)
                   Material(
                     color: Colors.red.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(12),
                     child: ListTile(
-                      leading: const Icon(Icons.error_outline, color: Colors.red),
-                      title: Text('$_offersError', style: const TextStyle(color: Colors.red)),
-                      trailing: IconButton(icon: const Icon(Icons.refresh, color: Colors.red), onPressed: _fetchOffers),
+                      leading:
+                          const Icon(Icons.error_outline, color: Colors.red),
+                      title: Text('$_offersError',
+                          style: const TextStyle(color: Colors.red)),
+                      trailing: IconButton(
+                          icon: const Icon(Icons.refresh, color: Colors.red),
+                          onPressed: _fetchOffers),
                     ),
                   )
                 else if (_offers.isEmpty)
-                  const Padding(padding: EdgeInsets.all(12), child: Text('No tienes ofertas nuevas.', style: TextStyle(color: Colors.black54)))
+                  const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text('No tienes ofertas nuevas.',
+                          style: TextStyle(color: Colors.black54)))
                 else
                   Flexible(
                     child: ListView.separated(
@@ -942,17 +1138,33 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                       separatorBuilder: (_, __) => const Divider(height: 16),
                       itemBuilder: (context, i) {
                         final o = _offers[i];
-                        final workerName = (o['workerName'] ?? o['trabajador'] ?? 'Trabajador').toString();
-                        final workerLabel = workerName.isEmpty ? 'Trabajador' : workerName;
-                        final estadoRaw = (o['estadoNegociacion'] ?? o['estado'] ?? '').toString();
+                        final workerName =
+                            (o['workerName'] ?? o['trabajador'] ?? 'Trabajador')
+                                .toString();
+                        final workerLabel =
+                            workerName.isEmpty ? 'Trabajador' : workerName;
+                        final estadoRaw =
+                            (o['estadoNegociacion'] ?? o['estado'] ?? '')
+                                .toString();
                         final estado = _negotiationStateLabel(estadoRaw);
-                        final turnoRaw = o['requiereRespuestaDe'] ?? o['turno'] ?? o['pendingFor'];
+                        final turnoRaw = o['requiereRespuestaDe'] ??
+                            o['turno'] ??
+                            o['pendingFor'];
                         final turno = _participantLabel(turnoRaw);
-                        final ultimo = _participantLabel(o['ultimoEmisor'] ?? o['lastActor']);
-                        final serviceTitle = (o['serviceTitle'] ?? o['tituloServicio'] ?? '').toString();
-                        final montoActual = _asDouble(o['monto'] ?? o['precio'] ?? o['montoActual'] ?? o['montoFinal']);
-                        final montoTrab = _asDouble(o['montoTrabajador'] ?? o['precioTrabajador'] ?? o['precio']);
-                        final montoCliente = _asDouble(o['montoCliente'] ?? o['precioCliente']);
+                        final ultimo = _participantLabel(
+                            o['ultimoEmisor'] ?? o['lastActor']);
+                        final serviceTitle =
+                            (o['serviceTitle'] ?? o['tituloServicio'] ?? '')
+                                .toString();
+                        final montoActual = _asDouble(o['monto'] ??
+                            o['precio'] ??
+                            o['montoActual'] ??
+                            o['montoFinal']);
+                        final montoTrab = _asDouble(o['montoTrabajador'] ??
+                            o['precioTrabajador'] ??
+                            o['precio']);
+                        final montoCliente =
+                            _asDouble(o['montoCliente'] ?? o['precioCliente']);
                         final offerId = () {
                           final v = o['id'];
                           if (v is int) return v;
@@ -960,13 +1172,18 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                         }();
                         final serviceId = _serviceIdFromOffer(o);
                         final subtitleLines = <String>[
-                          if (serviceTitle.isNotEmpty) 'Servicio: ' + serviceTitle,
+                          if (serviceTitle.isNotEmpty)
+                            'Servicio: ' + serviceTitle,
                           if (estado.isNotEmpty) 'Estado: ' + estado,
                           if (turno.isNotEmpty) 'Turno: ' + turno,
                           if (ultimo.isNotEmpty) '?ltima oferta: ' + ultimo,
-                          if (montoActual != null) 'Monto vigente: ' + _formatCurrency(montoActual),
-                          if (montoTrab != null) 'Propuesta del trabajador: ' + _formatCurrency(montoTrab),
-                          if (montoCliente != null) 'Tu oferta: ' + _formatCurrency(montoCliente),
+                          if (montoActual != null)
+                            'Monto vigente: ' + _formatCurrency(montoActual),
+                          if (montoTrab != null)
+                            'Propuesta del trabajador: ' +
+                                _formatCurrency(montoTrab),
+                          if (montoCliente != null)
+                            'Tu oferta: ' + _formatCurrency(montoCliente),
                         ];
                         final paymentInfo = _normalizePaymentInfo(
                           o,
@@ -975,24 +1192,35 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                           fallbackServiceTitle: serviceTitle,
                         );
                         final paymentStatusUpper = _paymentStatusUpper(
-                          paymentInfo?['paymentStatus'] ?? o['paymentStatus'] ?? o['estadoPago'],
+                          paymentInfo?['paymentStatus'] ??
+                              o['paymentStatus'] ??
+                              o['estadoPago'],
                         );
-                        if (paymentStatusUpper.isNotEmpty && paymentStatusUpper != 'NOT_REQUIRED') {
-                          subtitleLines.add('Estado de pago: ' + _paymentStatusLabel(paymentStatusUpper));
+                        if (paymentStatusUpper.isNotEmpty &&
+                            paymentStatusUpper != 'NOT_REQUIRED') {
+                          subtitleLines.add('Estado de pago: ' +
+                              _paymentStatusLabel(paymentStatusUpper));
                         }
                         final subtitleWidget = subtitleLines.isEmpty
                             ? null
                             : Text(subtitleLines.join('\n'));
                         final estadoNormalized = estadoRaw.toUpperCase();
-                        final canRespond = offerId > 0 && (estadoNormalized.isEmpty || estadoNormalized == 'EN_NEGOCIACION') && _isClientTurn(turnoRaw);
+                        final canRespond = offerId > 0 &&
+                            (estadoNormalized.isEmpty ||
+                                estadoNormalized == 'EN_NEGOCIACION') &&
+                            _isClientTurn(turnoRaw);
                         final waitingPayment = estadoNormalized == 'ACEPTADA' &&
                             paymentStatusUpper.isNotEmpty &&
                             paymentStatusUpper != 'SUCCEEDED' &&
                             paymentStatusUpper != 'NOT_REQUIRED';
                         final trailing = waitingPayment
                             ? FilledButton.tonalIcon(
-                                icon: Icon(paymentStatusUpper == 'FAILED' ? Icons.refresh : Icons.lock_open),
-                                label: Text(paymentStatusUpper == 'FAILED' ? 'Reintentar pago' : 'Ir al checkout'),
+                                icon: Icon(paymentStatusUpper == 'FAILED'
+                                    ? Icons.refresh
+                                    : Icons.lock_open),
+                                label: Text(paymentStatusUpper == 'FAILED'
+                                    ? 'Reintentar pago'
+                                    : 'Ir al checkout'),
                                 onPressed: () => _openPaymentCheckout(
                                   offerId: offerId,
                                   serviceId: serviceId,
@@ -1002,13 +1230,32 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                             : Wrap(
                                 spacing: 8,
                                 children: [
-                                  IconButton(tooltip: 'Aceptar', icon: const Icon(Icons.check_circle, color: Colors.green), onPressed: canRespond ? () => doAccept(offerId, serviceId) : null),
-                                  IconButton(tooltip: 'Rechazar', icon: const Icon(Icons.cancel, color: Colors.red), onPressed: canRespond ? () => doReject(offerId, serviceId) : null),
-                                  IconButton(tooltip: 'Contraoferta', icon: const Icon(Icons.swap_horiz, color: Colors.orange), onPressed: canRespond ? () => doCounter(offerId) : null),
+                                  IconButton(
+                                      tooltip: 'Aceptar',
+                                      icon: const Icon(Icons.check_circle,
+                                          color: Colors.green),
+                                      onPressed: canRespond
+                                          ? () => doAccept(offerId, serviceId)
+                                          : null),
+                                  IconButton(
+                                      tooltip: 'Rechazar',
+                                      icon: const Icon(Icons.cancel,
+                                          color: Colors.red),
+                                      onPressed: canRespond
+                                          ? () => doReject(offerId, serviceId)
+                                          : null),
+                                  IconButton(
+                                      tooltip: 'Contraoferta',
+                                      icon: const Icon(Icons.swap_horiz,
+                                          color: Colors.orange),
+                                      onPressed: canRespond
+                                          ? () => doCounter(offerId)
+                                          : null),
                                 ],
                               );
                         return ListTile(
-                          leading: const CircleAvatar(child: Icon(Icons.campaign_outlined)),
+                          leading: const CircleAvatar(
+                              child: Icon(Icons.campaign_outlined)),
                           title: Text(workerLabel + ' ofert?'),
                           subtitle: subtitleWidget,
                           trailing: trailing,
@@ -1025,7 +1272,8 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     _notificationsSetState = null;
   }
 
-  Future<void> _openEditForm(int serviceId, Map<String, dynamic> initial) async {
+  Future<void> _openEditForm(
+      int serviceId, Map<String, dynamic> initial) async {
     final updated = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
@@ -1041,38 +1289,12 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
       await _loadServices();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Servicio actualizado'), behavior: SnackBarBehavior.floating, backgroundColor: _primary),
+        const SnackBar(
+            content: Text('Servicio actualizado'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: _primary),
       );
     }
-  }
-
-  String _extractErrorMessage(PaymentGatewayException e, {String fallback = 'Ocurrió un error'}) {
-    try {
-      final decoded = e.body.isNotEmpty ? jsonDecode(e.body) : null;
-      if (decoded is Map<String, dynamic>) {
-        if (decoded['error'] != null) {
-          return decoded['error'].toString();
-        }
-        if (decoded['mensaje'] != null) {
-          return decoded['mensaje'].toString();
-        }
-        if (decoded['errores'] is Iterable) {
-          final errors = (decoded['errores'] as Iterable)
-              .map((item) => item is Map<String, dynamic> && item['mensaje'] != null
-                  ? item['mensaje'].toString()
-                  : item?.toString())
-              .where((item) => item != null && item.isNotEmpty)
-              .cast<String>()
-              .toList();
-          if (errors.isNotEmpty) {
-            return errors.join('; ');
-          }
-        }
-      }
-    } catch (_) {
-      // ignore
-    }
-    return fallback;
   }
 
   Future<void> _confirmDelete(int serviceId) async {
@@ -1082,8 +1304,13 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
         title: const Text('Eliminar servicio'),
         content: const Text('¿Seguro que deseas eliminar esta publicación?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar', style: TextStyle(color: Colors.red))),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child:
+                  const Text('Eliminar', style: TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -1091,7 +1318,11 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     try {
       final result = await ApiService.deleteService(serviceId);
       final bool success = result['exitoso'] == true;
-      final String message = (result['mensaje'] ?? (success ? 'Servicio eliminado' : 'No se puede eliminar un servicio aceptado.')).toString();
+      final String message = (result['mensaje'] ??
+              (success
+                  ? 'Servicio eliminado'
+                  : 'No se puede eliminar un servicio aceptado.'))
+          .toString();
       if (success) {
         await _loadServices();
       }
@@ -1106,19 +1337,24 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
+        SnackBar(
+            content: Text('Error: $e'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red),
       );
     }
   }
 
   Future<void> _openAccountManager() async {
-    final id = _clientId; if (id == null) return;
+    final id = _clientId;
+    if (id == null) return;
     final updated = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.white,
       useSafeArea: true,
-      builder: (_) => AccountManagementSheet(userId: id, role: 'client', initialData: _profile),
+      builder: (_) => AccountManagementSheet(
+          userId: id, role: 'client', initialData: _profile),
     );
     if (updated != null && mounted) {
       setState(() => _profile = updated);
@@ -1137,7 +1373,10 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     if (created != null) {
       await _loadServices();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Servicio publicado con éxito'), behavior: SnackBarBehavior.floating, backgroundColor: _primary));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Servicio publicado con éxito'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: _primary));
     }
   }
 
@@ -1153,7 +1392,11 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     final result = await showDialog<String>(
       context: context,
       barrierDismissible: true,
-      builder: (_) => ProfilePopover(name: name, email: email.isNotEmpty ? email : 'Mi cuenta', initialLetter: name.isNotEmpty ? name[0].toUpperCase() : '?', accentColor: _primary),
+      builder: (_) => ProfilePopover(
+          name: name,
+          email: email.isNotEmpty ? email : 'Mi cuenta',
+          initialLetter: name.isNotEmpty ? name[0].toUpperCase() : '?',
+          accentColor: _primary),
     );
     if (result == 'manage') {
       await _openAccountManager();
@@ -1174,7 +1417,8 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
           tooltip: 'Publicar servicio',
           onPressed: _openPublishForm,
         ),
-        title: const Text('Conecta2', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+        title: const Text('Workify',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
         actions: [
           IconButton(
             icon: Stack(
@@ -1183,11 +1427,17 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                 const Icon(Icons.notifications_outlined, color: Colors.black87),
                 if (_offers.isNotEmpty)
                   Positioned(
-                    right: -2, top: -2,
+                    right: -2,
+                    top: -2,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)),
-                      child: Text(_offers.length.toString(), style: const TextStyle(color: Colors.white, fontSize: 10)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10)),
+                      child: Text(_offers.length.toString(),
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 10)),
                     ),
                   ),
               ],
@@ -1196,9 +1446,15 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
             onPressed: _openNotifications,
           ),
           Padding(
-            padding: const EdgeInsets.only(right: 14),
-            child: GestureDetector(onTap: _showProfileMenu, child: CircleAvatar(backgroundColor: _primary, child: Text((_currentName().isNotEmpty ? _currentName()[0] : '?').toUpperCase(), style: const TextStyle(color: Colors.white))))
-          ),
+              padding: const EdgeInsets.only(right: 14),
+              child: GestureDetector(
+                  onTap: _showProfileMenu,
+                  child: CircleAvatar(
+                      backgroundColor: _primary,
+                      child: Text(
+                          (_currentName().isNotEmpty ? _currentName()[0] : '?')
+                              .toUpperCase(),
+                          style: const TextStyle(color: Colors.white))))),
         ],
       ),
       body: RefreshIndicator(
@@ -1213,15 +1469,20 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                   ...List.generate(_services.length, (i) {
                     final s = _services[i];
                     final titulo = (s['titulo'] ?? '').toString();
-                    final categoria = categoryDisplayLabel((s['categoria'] ?? '').toString());
+                    final categoria =
+                        categoryDisplayLabel((s['categoria'] ?? '').toString());
                     final ubicacion = (s['ubicacion'] ?? '').toString();
-                    final estadoRaw = (s['estado'] ?? s['estadoServicio'] ?? s['status'] ?? 'PENDIENTE').toString();
+                    final estadoRaw = (s['estado'] ??
+                            s['estadoServicio'] ??
+                            s['status'] ??
+                            'PENDIENTE')
+                        .toString();
                     final estadoUpper = estadoRaw.toUpperCase();
                     final estadoLabel = _serviceStateLabel(estadoRaw);
                     final fechaRaw = s['fechaEstimada'] ?? s['fecha'];
                     final fecha = _parseServiceDate(fechaRaw);
                     final fechaTxt = fecha != null
-                        ? '${fecha.day.toString().padLeft(2,'0')}/${fecha.month.toString().padLeft(2,'0')}/${fecha.year}'
+                        ? '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}'
                         : '';
                     final int? serviceId = () {
                       final v = s['id'];
@@ -1235,26 +1496,32 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Card(
                         color: const Color(0xFFF6F1FF),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             ListTile(
-                              contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                              contentPadding:
+                                  const EdgeInsets.fromLTRB(16, 12, 16, 12),
                               leading: CircleAvatar(
-                                backgroundColor: const Color(0xFF7E57C2).withOpacity(0.12),
-                                child: const Icon(Icons.work_outline, color: Color(0xFF7E57C2)),
+                                backgroundColor:
+                                    const Color(0xFF7E57C2).withOpacity(0.12),
+                                child: const Icon(Icons.work_outline,
+                                    color: Color(0xFF7E57C2)),
                               ),
                               title: Text(
                                 titulo.isEmpty ? 'Servicio' : titulo,
-                                style: const TextStyle(fontWeight: FontWeight.w700),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700),
                               ),
                               subtitle: () {
                                 final parts = <String>[
                                   if (ubicacion.isNotEmpty) ubicacion,
                                   if (categoria.isNotEmpty) categoria,
                                   if (fechaTxt.isNotEmpty) 'Fecha: $fechaTxt',
-                                  if (estadoLabel.isNotEmpty) 'Estado: $estadoLabel',
+                                  if (estadoLabel.isNotEmpty)
+                                    'Estado: $estadoLabel',
                                 ];
                                 if (parts.isEmpty) return null;
                                 return Text(parts.join(' - '));
@@ -1285,11 +1552,16 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                                     }
                                     return Chip(
                                       label: Text(estadoLabel),
-                                      backgroundColor: statusColor.withOpacity(0.1),
-                                      labelStyle: TextStyle(color: statusColor, fontWeight: FontWeight.w600),
+                                      backgroundColor:
+                                          statusColor.withOpacity(0.1),
+                                      labelStyle: TextStyle(
+                                          color: statusColor,
+                                          fontWeight: FontWeight.w600),
                                     );
                                   }(),
-                                  if (estadoUpper == 'PENDIENTE' && editableServiceId != null)
+                                  if (estadoUpper == 'PENDIENTE' &&
+                                      editableServiceId != null) ...[
+                                    const SizedBox(width: 6),
                                     PopupMenuButton<String>(
                                       tooltip: 'Opciones',
                                       onSelected: (value) {
@@ -1310,25 +1582,32 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                                         const PopupMenuItem(
                                           value: 'delete',
                                           child: ListTile(
-                                            leading: Icon(Icons.delete_outline, color: Colors.red),
+                                            leading: Icon(Icons.delete_outline,
+                                                color: Colors.red),
                                             title: Text('Eliminar'),
                                           ),
                                         ),
                                       ],
                                     ),
+                                  ],
                                 ],
                               ),
                             ),
-                            if (estadoUpper == 'PENDIENTE_PAGO')
-                              _buildServicePaymentBanner(serviceId, pendingPayment),
+                            if (estadoUpper == 'PENDIENTE_PAGO') ...[
+                              if (pendingPayment != null)
+                                _buildServicePaymentBanner(serviceId, pendingPayment)
+                              else
+                                _buildWaitingPaymentBanner(serviceId, titulo),
+                            ],
                           ],
                         ),
                       ),
                     );
-
                   }),
                   const SizedBox(height: 8),
-                  const Text('Ver mapa', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  const Text('Ver mapa',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   const CurrentLocationMap(height: 260),
                 ],
@@ -1354,7 +1633,8 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
               _expiredServices.length == 1
                   ? '1 solicitud expiró y se ocultó del listado.'
                   : '${_expiredServices.length} solicitudes expiraron y se ocultaron del listado.',
-              style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                  color: Colors.orange, fontWeight: FontWeight.w600),
             ),
           ),
           TextButton(
@@ -1366,34 +1646,90 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     );
   }
 
+  Widget _buildWaitingPaymentBanner(int? serviceId, String? serviceTitle) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 14),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Pago pendiente', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          const Text('Esperando que el cliente inicie el pago para este servicio.',
+              style: TextStyle(fontSize: 13)),
+          if (serviceTitle != null && serviceTitle.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text('Servicio: $serviceTitle', style: const TextStyle(fontSize: 13)),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: FilledButton.icon(
+              icon: const Icon(Icons.payment),
+              label: const Text('Proceder al pago'),
+              onPressed: () async {
+                await _startPaymentFlow(serviceId, serviceTitle: serviceTitle);
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: TextButton.icon(
+              icon: const Icon(Icons.refresh),
+              label: const Text('Actualizar estado'),
+              onPressed: () async {
+                await _loadServices();
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildPaymentReminderCard(Map<String, dynamic> info) {
     final serviceId = _asInt(info['serviceId']);
     final offerId = _asInt(info['offerId']);
-    final serviceTitle = (info['serviceTitle'] ?? _serviceTitleById(serviceId) ?? 'Servicio').toString();
     final normalized = _normalizePaymentInfo(
       info,
       fallbackServiceId: serviceId,
       fallbackOfferId: offerId,
-      fallbackServiceTitle: serviceTitle,
+      fallbackServiceTitle: (info['serviceTitle'] ?? _serviceTitleById(serviceId) ?? 'Servicio').toString(),
     );
-    final statusUpper = _paymentStatusUpper(normalized?['paymentStatus']);
+    final serviceTitle =
+        (info['serviceTitle'] ?? _serviceTitleById(serviceId) ?? 'Servicio')
+            .toString();
+    final statusUpper = _paymentStatusUpper(info['paymentStatus']);
     final label = _paymentStatusLabel(statusUpper);
-    final amount = _asDouble(normalized?['amount']);
+    final amount = _asDouble(info['amount']);
     final isFailed = statusUpper == 'FAILED';
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: isFailed ? Colors.red.withOpacity(0.05) : Colors.orange.withOpacity(0.08),
+        color: isFailed
+            ? Colors.red.withOpacity(0.05)
+            : Colors.orange.withOpacity(0.08),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isFailed ? Colors.red.shade200 : Colors.orange.shade200),
+        border: Border.all(
+            color: isFailed ? Colors.red.shade200 : Colors.orange.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(serviceTitle, style: const TextStyle(fontWeight: FontWeight.w700)),
+          Text(serviceTitle,
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
-          Text('Estado: $label', style: TextStyle(color: _paymentStatusColor(statusUpper), fontWeight: FontWeight.w600)),
+          Text('Estado: $label',
+              style: TextStyle(
+                  color: _paymentStatusColor(statusUpper),
+                  fontWeight: FontWeight.w600)),
           if (amount != null) Text('Monto: ${_formatCurrency(amount)}'),
           const SizedBox(height: 6),
           Text(
@@ -1413,33 +1749,37 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                 initialInfo: info,
               ),
             ),
-            TextButton.icon(
-              icon: const Icon(Icons.sync),
-              label: const Text('Actualizar estado'),
-              onPressed: () async {
-                if (normalized == null) return;
-                try {
-                  await _refreshPaymentStatus(
-                    current: normalized,
-                    fallbackOfferId: offerId,
-                    fallbackServiceId: serviceId,
-                    fallbackServiceTitle: _serviceTitleById(serviceId),
-                  );
-                } catch (e) {
-                  if (!mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('No se pudo actualizar: $e'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
-                  );
-                }
-              },
-            ),
+              TextButton.icon(
+                icon: const Icon(Icons.sync),
+                label: const Text('Actualizar estado'),
+                onPressed: () async {
+                  if (offerId == null || normalized == null) return;
+                  try {
+                    await _refreshPaymentStatus(
+                      current: normalized,
+                      fallbackOfferId: offerId,
+                      fallbackServiceId: serviceId,
+                      fallbackServiceTitle: _serviceTitleById(serviceId),
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text('No se pudo actualizar: $e'),
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: Colors.red),
+                    );
+                  }
+                },
+              ),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildServicePaymentBanner(int? serviceId, Map<String, dynamic>? info) {
+  Widget _buildServicePaymentBanner(
+      int? serviceId, Map<String, dynamic>? info) {
     final normalized = info == null
         ? null
         : _normalizePaymentInfo(
@@ -1452,7 +1792,9 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
     final amount = _asDouble(normalized?['amount']);
     final offerId = _asInt(normalized?['offerId']);
     final isFailed = statusUpper == 'FAILED';
-    final color = isFailed ? Colors.red.withOpacity(0.05) : Colors.orange.withOpacity(0.08);
+    final color = isFailed
+        ? Colors.red.withOpacity(0.05)
+        : Colors.orange.withOpacity(0.08);
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.fromLTRB(16, 8, 16, 14),
@@ -1460,15 +1802,23 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
       decoration: BoxDecoration(
         color: color,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isFailed ? Colors.red.shade200 : Colors.orange.shade200),
+        border: Border.all(
+            color: isFailed ? Colors.red.shade200 : Colors.orange.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Pago pendiente', style: TextStyle(fontWeight: FontWeight.w700)),
+          const Text('Pago pendiente',
+              style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
-          Text('Estado actual: $label', style: TextStyle(color: _paymentStatusColor(statusUpper), fontWeight: FontWeight.w600)),
-          if (amount != null) Padding(padding: const EdgeInsets.only(top: 4), child: Text('Monto: ${_formatCurrency(amount)}')),
+          Text('Estado actual: $label',
+              style: TextStyle(
+                  color: _paymentStatusColor(statusUpper),
+                  fontWeight: FontWeight.w600)),
+          if (amount != null)
+            Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('Monto: ${_formatCurrency(amount)}')),
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(
@@ -1488,7 +1838,8 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                 children: [
                   FilledButton.icon(
                     icon: Icon(isFailed ? Icons.refresh : Icons.lock_open),
-                    label: Text(isFailed ? 'Reintentar pago' : 'Ir al checkout'),
+                    label:
+                        Text(isFailed ? 'Reintentar pago' : 'Ir al checkout'),
                     onPressed: () => _openPaymentCheckout(
                       offerId: offerId,
                       serviceId: serviceId,
@@ -1499,7 +1850,7 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                     icon: const Icon(Icons.sync),
                     label: const Text('Actualizar estado'),
                     onPressed: () async {
-                      if (offerId == null || normalized == null) return;
+                      if (offerId == null || offerId <= 0 || normalized == null) return;
                       try {
                         await _refreshPaymentStatus(
                           current: normalized,
@@ -1510,7 +1861,10 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                       } catch (e) {
                         if (!mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('No se pudo actualizar: $e'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red),
+                          SnackBar(
+                              content: Text('No se pudo actualizar: $e'),
+                              behavior: SnackBarBehavior.floating,
+                              backgroundColor: Colors.red),
                         );
                       }
                     },
@@ -1571,15 +1925,20 @@ class _ClientHomeState extends State<ClientHome> with SingleTickerProviderStateM
                       itemBuilder: (context, index) {
                         final svc = _expiredServices[index];
                         final titulo = (svc['titulo'] ?? 'Servicio').toString();
-                        final fecha = _parseServiceDate(svc['fechaEstimada'] ?? svc['fecha']);
+                        final fecha = _parseServiceDate(
+                            svc['fechaEstimada'] ?? svc['fecha']);
                         final fechaTxt = fecha != null
-                            ? '${fecha.day.toString().padLeft(2,'0')}/${fecha.month.toString().padLeft(2,'0')}/${fecha.year}'
+                            ? '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}'
                             : 'Fecha no disponible';
                         final ubicacion = (svc['ubicacion'] ?? '').toString();
-                        final categoria = categoryDisplayLabel((svc['categoria'] ?? '').toString());
+                        final categoria = categoryDisplayLabel(
+                            (svc['categoria'] ?? '').toString());
                         return ListTile(
-                          leading: const Icon(Icons.warning_amber_outlined, color: Colors.orange),
-                          title: Text(titulo, style: const TextStyle(fontWeight: FontWeight.w700)),
+                          leading: const Icon(Icons.warning_amber_outlined,
+                              color: Colors.orange),
+                          title: Text(titulo,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w700)),
                           subtitle: Text(
                             [
                               'Expiró el $fechaTxt',
@@ -1645,13 +2004,19 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
     final today = DateTime.now();
     final todayAt0 = DateTime(today.year, today.month, today.day);
     if (_fecha == null || _fecha!.isBefore(todayAt0)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La fecha no puede ser anterior a hoy'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('La fecha no puede ser anterior a hoy'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red));
       return;
     }
 
     final categoriaValue = normalizeCategoryValue(_categoria);
     if (categoriaValue.isEmpty || !widget.categorias.contains(categoriaValue)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Categoría inválida'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Categoría inválida'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red));
       return;
     }
 
@@ -1667,7 +2032,10 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
       if (!mounted) return;
       Navigator.pop(context, resp);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al publicar: $e'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al publicar: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -1677,73 +2045,119 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: 16, right: 16, top: 16, bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
       ),
       child: SingleChildScrollView(
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8))),
+              Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(8))),
               const SizedBox(height: 12),
-              const Text('Publicación de servicios', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const Text('Publicación de servicios',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 16),
-
               TextFormField(
                 controller: _tituloCtrl,
-                decoration: const InputDecoration(labelText: 'Título *', prefixIcon: Icon(Icons.title)),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'El título no debe estar vacío' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Título *', prefixIcon: Icon(Icons.title)),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'El título no debe estar vacío'
+                    : null,
               ),
               const SizedBox(height: 12),
-
               TextFormField(
                 controller: _descripcionCtrl,
-                minLines: 3, maxLines: 6,
-                decoration: const InputDecoration(labelText: 'Descripción *', prefixIcon: Icon(Icons.description_outlined)),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'La descripción no debe estar vacía' : null,
+                minLines: 3,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                    labelText: 'Descripción *',
+                    prefixIcon: Icon(Icons.description_outlined)),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'La descripción no debe estar vacía'
+                    : null,
               ),
               const SizedBox(height: 12),
-
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Categoría *', prefixIcon: Icon(Icons.category_outlined)),
+                decoration: const InputDecoration(
+                    labelText: 'Categoría *',
+                    prefixIcon: Icon(Icons.category_outlined)),
                 value: _categoria,
-                items: widget.categorias.map((c) => DropdownMenuItem(value: c, child: Text(categoryDisplayLabel(c)))).toList(),
+                items: widget.categorias
+                    .map((c) => DropdownMenuItem(
+                        value: c, child: Text(categoryDisplayLabel(c))))
+                    .toList(),
                 onChanged: (v) => setState(() => _categoria = v),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Selecciona una categoría' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Selecciona una categoría'
+                    : null,
               ),
               const SizedBox(height: 12),
-
               TextFormField(
                 controller: _ubicacionCtrl,
-                decoration: const InputDecoration(labelText: 'Ubicación *', prefixIcon: Icon(Icons.location_on_outlined)),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'La ubicación es obligatoria' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Ubicación *',
+                    prefixIcon: Icon(Icons.location_on_outlined)),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'La ubicación es obligatoria'
+                    : null,
               ),
               const SizedBox(height: 12),
-
               InkWell(
                 onTap: _pickDate,
                 child: InputDecorator(
-                  decoration: const InputDecoration(labelText: 'Fecha estimada *', prefixIcon: Icon(Icons.event_outlined), border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Fecha estimada *',
+                      prefixIcon: Icon(Icons.event_outlined),
+                      border: OutlineInputBorder()),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(_fecha == null ? 'Selecciona una fecha' : _fmtDate(_fecha!)),
+                      Text(_fecha == null
+                          ? 'Selecciona una fecha'
+                          : _fmtDate(_fecha!)),
                       const Icon(Icons.calendar_today, size: 18),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 18),
-
               Row(
                 children: [
-                  Expanded(child: OutlinedButton(onPressed: _sending ? null : () => Navigator.pop(context), child: const Text('Cancelar'))),
+                  Expanded(
+                      child: OutlinedButton(
+                          onPressed:
+                              _sending ? null : () => Navigator.pop(context),
+                          child: const Text('Cancelar'))),
                   const SizedBox(width: 12),
-                  Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white), onPressed: _sending ? null : _submit, child: _sending ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Guardar'))),
+                  Expanded(
+                      child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: _primary,
+                              foregroundColor: Colors.white),
+                          onPressed: _sending ? null : _submit,
+                          child: _sending
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Text('Guardar'))),
                 ],
               ),
               const SizedBox(height: 4),
-              const Align(alignment: Alignment.centerLeft, child: Text('* Campos obligatorios', style: TextStyle(fontSize: 12, color: Colors.black54))),
+              const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('* Campos obligatorios',
+                      style: TextStyle(fontSize: 12, color: Colors.black54))),
             ],
           ),
         ),
@@ -1760,7 +2174,10 @@ class _EditServiceForm extends StatefulWidget {
   final int serviceId;
   final List<String> categorias;
   final Map<String, dynamic> initial;
-  const _EditServiceForm({required this.serviceId, required this.categorias, required this.initial});
+  const _EditServiceForm(
+      {required this.serviceId,
+      required this.categorias,
+      required this.initial});
   @override
   State<_EditServiceForm> createState() => _EditServiceFormState();
 }
@@ -1778,13 +2195,18 @@ class _EditServiceFormState extends State<_EditServiceForm> {
   void initState() {
     super.initState();
     final init = widget.initial;
-    _tituloCtrl = TextEditingController(text: (init['titulo'] ?? '').toString());
-    _descripcionCtrl = TextEditingController(text: (init['descripcion'] ?? '').toString());
-    _ubicacionCtrl = TextEditingController(text: (init['ubicacion'] ?? '').toString());
+    _tituloCtrl =
+        TextEditingController(text: (init['titulo'] ?? '').toString());
+    _descripcionCtrl =
+        TextEditingController(text: (init['descripcion'] ?? '').toString());
+    _ubicacionCtrl =
+        TextEditingController(text: (init['ubicacion'] ?? '').toString());
     final rawCat = normalizeCategoryValue((init['categoria'] ?? '').toString());
     _categoria = widget.categorias.contains(rawCat) ? rawCat : null;
     final fechaRaw = (init['fechaEstimada'] ?? init['fecha'] ?? '').toString();
-    try { _fecha = DateTime.tryParse(fechaRaw); } catch (_) {}
+    try {
+      _fecha = DateTime.tryParse(fechaRaw);
+    } catch (_) {}
   }
 
   @override
@@ -1816,13 +2238,19 @@ class _EditServiceFormState extends State<_EditServiceForm> {
     final today = DateTime.now();
     final todayAt0 = DateTime(today.year, today.month, today.day);
     if (_fecha == null || _fecha!.isBefore(todayAt0)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('La fecha no puede ser anterior a hoy'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('La fecha no puede ser anterior a hoy'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red));
       return;
     }
 
     final categoriaValue = normalizeCategoryValue(_categoria);
     if (categoriaValue.isEmpty || !widget.categorias.contains(categoriaValue)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Categoría inválida'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Categoría inválida'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red));
       return;
     }
 
@@ -1839,7 +2267,10 @@ class _EditServiceFormState extends State<_EditServiceForm> {
       if (!mounted) return;
       Navigator.pop(context, resp);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al guardar: $e'), behavior: SnackBarBehavior.floating, backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error al guardar: $e'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Colors.red));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -1848,68 +2279,112 @@ class _EditServiceFormState extends State<_EditServiceForm> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(context).viewInsets.bottom + 16),
+      padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16),
       child: SingleChildScrollView(
         child: Form(
           key: _formKey,
           child: Column(
             children: [
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8))),
+              Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(8))),
               const SizedBox(height: 12),
-              const Text('Editar servicio', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const Text('Editar servicio',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 16),
-
               TextFormField(
                 controller: _tituloCtrl,
-                decoration: const InputDecoration(labelText: 'Título *', prefixIcon: Icon(Icons.title)),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'El título no debe estar vacío' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Título *', prefixIcon: Icon(Icons.title)),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'El título no debe estar vacío'
+                    : null,
               ),
               const SizedBox(height: 12),
-
               TextFormField(
                 controller: _descripcionCtrl,
-                minLines: 3, maxLines: 6,
-                decoration: const InputDecoration(labelText: 'Descripción *', prefixIcon: Icon(Icons.description_outlined)),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'La descripción no debe estar vacía' : null,
+                minLines: 3,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                    labelText: 'Descripción *',
+                    prefixIcon: Icon(Icons.description_outlined)),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'La descripción no debe estar vacía'
+                    : null,
               ),
               const SizedBox(height: 12),
-
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(labelText: 'Categoría *', prefixIcon: Icon(Icons.category_outlined)),
+                decoration: const InputDecoration(
+                    labelText: 'Categoría *',
+                    prefixIcon: Icon(Icons.category_outlined)),
                 value: _categoria,
-                items: widget.categorias.map((c) => DropdownMenuItem(value: c, child: Text(categoryDisplayLabel(c)))).toList(),
+                items: widget.categorias
+                    .map((c) => DropdownMenuItem(
+                        value: c, child: Text(categoryDisplayLabel(c))))
+                    .toList(),
                 onChanged: (v) => setState(() => _categoria = v),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Selecciona una categoría' : null,
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'Selecciona una categoría'
+                    : null,
               ),
               const SizedBox(height: 12),
-
               TextFormField(
                 controller: _ubicacionCtrl,
-                decoration: const InputDecoration(labelText: 'Ubicación *', prefixIcon: Icon(Icons.location_on_outlined)),
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'La ubicación es obligatoria' : null,
+                decoration: const InputDecoration(
+                    labelText: 'Ubicación *',
+                    prefixIcon: Icon(Icons.location_on_outlined)),
+                validator: (v) => (v == null || v.trim().isEmpty)
+                    ? 'La ubicación es obligatoria'
+                    : null,
               ),
               const SizedBox(height: 12),
-
               InkWell(
                 onTap: _pickDate,
                 child: InputDecorator(
-                  decoration: const InputDecoration(labelText: 'Fecha estimada *', prefixIcon: Icon(Icons.event_outlined), border: OutlineInputBorder()),
+                  decoration: const InputDecoration(
+                      labelText: 'Fecha estimada *',
+                      prefixIcon: Icon(Icons.event_outlined),
+                      border: OutlineInputBorder()),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(_fecha == null ? 'Selecciona una fecha' : _fmtDate(_fecha!)),
+                      Text(_fecha == null
+                          ? 'Selecciona una fecha'
+                          : _fmtDate(_fecha!)),
                       const Icon(Icons.calendar_today, size: 18),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 18),
-
               Row(
                 children: [
-                  Expanded(child: OutlinedButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancelar'))),
+                  Expanded(
+                      child: OutlinedButton(
+                          onPressed:
+                              _saving ? null : () => Navigator.pop(context),
+                          child: const Text('Cancelar'))),
                   const SizedBox(width: 12),
-                  Expanded(child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white), onPressed: _saving ? null : _submit, child: _saving ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Guardar'))),
+                  Expanded(
+                      child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: _primary,
+                              foregroundColor: Colors.white),
+                          onPressed: _saving ? null : _submit,
+                          child: _saving
+                              ? const SizedBox(
+                                  height: 18,
+                                  width: 18,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: Colors.white))
+                              : const Text('Guardar'))),
                 ],
               ),
             ],
@@ -1919,7 +2394,3 @@ class _EditServiceFormState extends State<_EditServiceForm> {
     );
   }
 }
-
-
-
-

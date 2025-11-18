@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, Tar
 import 'package:http/http.dart' as http;
 
 import 'api_service.dart';
+import 'payment_intent_response.dart';
 
 class ApiServicePayment {
   static String get _baseHost {
@@ -20,27 +21,35 @@ class ApiServicePayment {
 
   static Map<String, String> get headers => ApiService.clientAuthHeaders();
 
-  static Future<Map<String, dynamic>> createIntent({
-    required int amount,
-    String? description,
-    List<String>? paymentMethodTypes,
-    Map<String, dynamic>? metadata,
+  static Future<Map<String, dynamic>> acceptOffer({
+    required int offerId,
+  }) async {
+    final response = await http
+        .put(
+          _payments("/offers/$offerId/accept"),
+          headers: headers,
+        )
+        .timeout(const Duration(seconds: 15));
+    return _processResponse(response, "aceptar oferta", headers);
+  }
+
+  static Future<PaymentIntentResponse> createIntent({
+    required int offerId,
+    Map<String, dynamic>? overrides,
   }) async {
     final body = <String, dynamic>{
-      "amount": amount,
-      if (description != null) "description": description,
-      if (paymentMethodTypes != null && paymentMethodTypes.isNotEmpty)
-        "payment_method_types": paymentMethodTypes,
-      if (metadata != null) "metadata": metadata,
+      "offerId": offerId,
+      if (overrides != null) ...overrides,
     };
     final response = await http
         .post(
-          _payments("/payment/create-intent"),
+          _payments("/payment/intents"),
           headers: headers,
           body: jsonEncode(body),
         )
         .timeout(const Duration(seconds: 15));
-    return _processResponse(response, "crear intent", headers);
+    final decoded = _processResponse(response, "crear intent", headers);
+    return PaymentIntentResponse.fromJson(decoded);
   }
 
   static Future<Map<String, dynamic>> confirmPayment({
@@ -61,20 +70,6 @@ class ApiServicePayment {
     return _processResponse(response, "confirmar intent", headers);
   }
 
-  static Future<Map<String, dynamic>> acceptOffer({
-    required int offerId,
-    Map<String, dynamic>? payload,
-  }) async {
-    final response = await http
-        .post(
-          _payments("/payment/offers/$offerId/accept-and-create-intent"),
-          headers: headers,
-          body: jsonEncode(payload ?? {}),
-        )
-        .timeout(const Duration(seconds: 15));
-    return _processResponse(response, "aceptar oferta", headers);
-  }
-
   static Future<Map<String, dynamic>> getPaymentStatus({
     required String paymentIntentId,
   }) async {
@@ -85,28 +80,6 @@ class ApiServicePayment {
         )
         .timeout(const Duration(seconds: 15));
     return _processResponse(response, "consultar estado", headers);
-  }
-
-  static Future<Map<String, dynamic>> triggerTestWebhook({
-    required String intentId,
-    required String eventType,
-    required String callbackUrl,
-    Map<String, dynamic>? payloadOverrides,
-  }) async {
-    final body = <String, dynamic>{
-      "intentId": intentId,
-      "eventType": eventType,
-      "callbackUrl": callbackUrl,
-      if (payloadOverrides != null) "payloadOverrides": payloadOverrides,
-    };
-    final response = await http
-        .post(
-          _payments("/webhooks/test"),
-          headers: headers,
-          body: jsonEncode(body),
-        )
-        .timeout(const Duration(seconds: 15));
-    return _processResponse(response, "simular webhook", headers);
   }
 
   static Map<String, dynamic> _processResponse(

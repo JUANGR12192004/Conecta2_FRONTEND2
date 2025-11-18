@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../services/api_service.dart';
@@ -34,6 +36,8 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
   List<Map<String, dynamic>> _incomingOffers = [];
   bool _inOffersLoading = false;
   String? _inOffersError;
+  Timer? _workerRefreshTimer;
+  static const Duration _workerRefreshInterval = Duration(seconds: 30);
 
   int? _asInt(dynamic value) {
     if (value == null) return null;
@@ -87,6 +91,8 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
         return 'En curso';
       case 'ACEPTADA':
         return 'Aceptada';
+      case 'PENDIENTE_DE_PAGO':
+        return 'Pago pendiente';
       case 'RECHAZADA':
         return 'Rechazada';
       case 'CERRADA':
@@ -260,6 +266,7 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
         _loading = false;
       });
       await _refreshWorkerData();
+      _startWorkerRefreshTimer();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -273,6 +280,21 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
     if (_workerId == null) return;
     await _fetchOpportunities();
     await _fetchIncomingOffers();
+  }
+
+  void _startWorkerRefreshTimer() {
+    _workerRefreshTimer?.cancel();
+    _workerRefreshTimer = Timer(_workerRefreshInterval, () async {
+      if (!mounted) return;
+      await _refreshWorkerData();
+      if (!mounted) return;
+      _startWorkerRefreshTimer();
+    });
+  }
+
+  void _stopWorkerRefreshTimer() {
+    _workerRefreshTimer?.cancel();
+    _workerRefreshTimer = null;
   }
 
   Future<void> _fetchOpportunities() async {
@@ -341,7 +363,7 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
       // marcar el servicio correspondiente como ASIGNADO solo para este trabajador.
       for (final o in list) {
         final estado = (o['estadoNegociacion'] ?? o['estado'] ?? '').toString().toUpperCase();
-        if (estado == 'ACEPTADA') {
+        if (estado == 'ACEPTADA' || estado == 'PENDIENTE_DE_PAGO') {
           final sid = _serviceIdFromOffer(o);
           if (sid != null) {
             setState(() {
@@ -415,6 +437,7 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _stopWorkerRefreshTimer();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -732,7 +755,7 @@ _buildMapCard(),
         elevation: 0,
         backgroundColor: Colors.white,
         title: const Text(
-          'Conecta2 Trabajador',
+          'WorkifyTrabajador',
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800),
         ),
         actions: [ IconButton( icon: Stack( clipBehavior: Clip.none, children: [ const Icon(Icons.notifications_outlined, color: Colors.black87), if (_incomingOffers.isNotEmpty) Positioned(right: -2, top: -2, child: Container(padding: const EdgeInsets.symmetric(horizontal:5, vertical:2), decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)), child: Text(_incomingOffers.length.toString(), style: const TextStyle(color: Colors.white, fontSize: 10)),),), ], ), tooltip: 'Notificaciones', onPressed: _openWorkerNotifications, ), IconButton( icon: const Icon(Icons.refresh_outlined, color: Colors.black87), tooltip: 'Actualizar', onPressed: _fetchProfile, ),

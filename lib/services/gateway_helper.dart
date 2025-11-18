@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'payment_intent_response.dart';
+
 const _gatewayBaseUrl = 'http://10.0.2.2:8090';
 const Map<String, String> _gatewayHeaders = {
   'Content-Type': 'application/json',
@@ -33,23 +35,6 @@ Future<PaymentIntentResponse?> debugCreateIntent({
     statusCode: response.statusCode,
     body: response.body,
   );
-}
-
-class PaymentIntentResponse {
-  final String intentId;
-  final String status;
-
-  PaymentIntentResponse({
-    required this.intentId,
-    required this.status,
-  });
-
-  factory PaymentIntentResponse.fromJson(Map<String, dynamic> json) {
-    return PaymentIntentResponse(
-      intentId: json['intentId'] as String,
-      status: json['status'] as String,
-    );
-  }
 }
 
 class GatewayException implements Exception {
