@@ -37,6 +37,8 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
   bool _polling = false;
   bool _didNotifySuccess = false;
   bool _didNotifyFailure = false;
+  bool _didSyncAfterSuccess = false;
+  bool _syncingAfterSuccess = false;
   String? _error;
 
   final TextEditingController _nameCtrl = TextEditingController();
@@ -92,7 +94,19 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     }
   }
 
+  String _statusFromInfo(Map<String, dynamic>? info) {
+    if (info == null) return '';
+    final status = info['paymentStatus'] ?? info['status'];
+    if (status == null) return '';
+    return status.toString().trim().toUpperCase();
+  }
+
   void _applyInfo(Map<String, dynamic> info) {
+    final statusUpper = _statusFromInfo(info);
+    final shouldSyncAfterSuccess =
+        statusUpper == 'SUCCEEDED' && !_didSyncAfterSuccess;
+    final isFailure =
+        statusUpper == 'FAILED' || statusUpper == 'REQUIRES_PAYMENT_METHOD';
     setState(() {
       _paymentInfo = Map<String, dynamic>.from(info);
       _loading = false;
@@ -101,11 +115,15 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
       _error = null;
     });
     widget.onPaymentInfo?.call(_paymentInfo!);
-    final status = _statusUpper();
-    if (status == 'SUCCEEDED' && !_didNotifySuccess) {
+    if (shouldSyncAfterSuccess) {
+      _didSyncAfterSuccess = true;
+      unawaited(_syncAfterSuccessAndNotify());
+      return;
+    }
+    if (statusUpper == 'SUCCEEDED' && !_didNotifySuccess) {
       _didNotifySuccess = true;
       widget.onPaymentSucceeded?.call();
-    } else if (status == 'FAILED' && !_didNotifyFailure) {
+    } else if (isFailure && !_didNotifyFailure) {
       _didNotifyFailure = true;
       widget.onPaymentFailed?.call(_paymentInfo!);
     }
@@ -176,9 +194,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
   }
 
   String _statusUpper() {
-    final status = _paymentInfo?['paymentStatus'] ?? _paymentInfo?['status'];
-    if (status == null) return '';
-    return status.toString().trim().toUpperCase();
+    return _statusFromInfo(_paymentInfo);
   }
 
   Color _statusColor() {
@@ -186,12 +202,30 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
       case 'SUCCEEDED':
         return Colors.green;
       case 'FAILED':
+      case 'REQUIRES_PAYMENT_METHOD':
         return Colors.red;
       case 'REQUIRES_ACTION':
         return Colors.deepOrange;
       case 'PENDING':
       default:
         return Colors.orange;
+    }
+  }
+
+  String _statusLabel(String status) {
+    switch (status) {
+      case 'SUCCEEDED':
+        return 'Pago exitoso';
+      case 'FAILED':
+        return 'Pago rechazado';
+      case 'REQUIRES_PAYMENT_METHOD':
+        return 'Requiere nuevo método';
+      case 'REQUIRES_ACTION':
+        return 'Se requiere acción';
+      case 'PENDING':
+        return 'Pago pendiente';
+      default:
+        return status.isEmpty ? 'Pago pendiente' : status;
     }
   }
 
@@ -267,7 +301,9 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
         await _refreshIntentStatus();
         if (!mounted) return;
         final status = _statusUpper();
-        if (status == 'SUCCEEDED' || status == 'FAILED') break;
+        if (status == 'SUCCEEDED' ||
+            status == 'FAILED' ||
+            status == 'REQUIRES_PAYMENT_METHOD') break;
       } catch (e) {
         if (!mounted) return;
         setState(() {
@@ -308,32 +344,71 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     }
   }
 
-  Future<void> _createIntent() async {
-    if (widget.offerId <= 0) {
-      throw Exception('Oferta inv�lida para crear el pago.');
-    }
-    _requireClientAuth();
-    final overrides = {
-      'description': _descriptionForIntent(),
-      'payment_method_types': ['card'],
-      'metadata': _metadataForIntent(),
-    };
-    final response = await ApiServicePayment.createIntent(
-      offerId: widget.offerId,
-      overrides: overrides,
-    );
-    await _applyGatewayResponse({
-      'paymentIntentId': response.intentId,
-      'paymentClientSecret': response.clientSecret,
-      'paymentStatus': response.status,
-      'metadata': overrides['metadata'],
-    });
-  }
+  Future<void> _syncAfterSuccessAndNotify() async {
+    final intentId = _intentId();
+    if (intentId == null || intentId.isEmpty) {
+      if (!_didNotifySuccess) {
+        _didNotifySuccess = true;
+        widget.onPaymentSucceeded?.call();
+      }
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _syncingAfterSuccess = true;
+      });
+    }
+    try {
+      final response =
+          await ApiServicePayment.getPaymentStatus(paymentIntentId: intentId);
+      await _applyGatewayResponse(response);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error ??= _describeError(e);
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _syncingAfterSuccess = false;
+      });
+      if (!_didNotifySuccess) {
+        _didNotifySuccess = true;
+        widget.onPaymentSucceeded?.call();
+      }
+    }
+  }
+
+  Future<void> _createIntent() async {
+    if (widget.offerId <= 0) {
+      throw Exception('Oferta inválida para crear el pago.');
+    }
+    _requireClientAuth();
+    _didSyncAfterSuccess = false;
+    _didNotifySuccess = false;
+    _didNotifyFailure = false;
+    final overrides = {
+      'description': _descriptionForIntent(),
+      'payment_method_types': ['card'],
+      'metadata': _metadataForIntent(),
+    };
+    final response = await ApiServicePayment.createIntent(
+      offerId: widget.offerId,
+      overrides: overrides,
+    );
+    await _applyGatewayResponse({
+      'paymentIntentId': response.intentId,
+      'paymentClientSecret': response.clientSecret,
+      'paymentStatus': response.status,
+      'metadata': overrides['metadata'],
+    });
+  }
+
   Future<void> _applyGatewayResponse(Map<String, dynamic> response) async {
     if (response.isEmpty) return;
     final normalized = _normalizeGatewayIntent(response);
     if (normalized.isEmpty) return;
-    final merged = <String, dynamic>{...? _paymentInfo, ...normalized};
+    final merged = <String, dynamic>{...?_paymentInfo, ...normalized};
     if (!mounted) return;
     _applyInfo(merged);
   }
@@ -396,14 +471,19 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
 
   Widget _buildStatusTile() {
     final status = _statusUpper();
+    final isSuccess = status == 'SUCCEEDED';
+    final isFailure =
+        status == 'FAILED' || status == 'REQUIRES_PAYMENT_METHOD';
     final color = _statusColor();
     final assignedWorker = _workerNameFromPaymentInfo();
-    final displayStatus = status == 'SUCCEEDED' ? 'Asignado' : status;
-    final description = status == 'SUCCEEDED'
+    final displayStatus = _statusLabel(status);
+    final description = isSuccess
         ? (assignedWorker != null
-            ? 'El servicio quedó asignado a $assignedWorker.'
-            : 'Tu pago fue confirmado por la pasarela.')
-        : status == 'FAILED'
+            ? 'Tu pago fue confirmado y el servicio quedó asignado a $assignedWorker.'
+            : _syncingAfterSuccess
+                ? 'Pago confirmado. Sincronizando el estado final...'
+                : 'Tu pago fue confirmado por la pasarela.')
+        : isFailure
             ? 'El intento de pago fue rechazado. Revisa los datos o intenta nuevamente.'
             : 'Ingresa los datos de la tarjeta simulada y presiona "Pagar".';
     return Container(
@@ -420,9 +500,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
             child: Icon(
               status == 'SUCCEEDED'
                   ? Icons.check
-                  : (status == 'FAILED'
-                      ? Icons.error_outline
-                      : Icons.lock_clock),
+                  : (isFailure ? Icons.error_outline : Icons.lock_clock),
               color: color,
             ),
           ),

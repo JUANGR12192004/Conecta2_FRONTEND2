@@ -142,7 +142,7 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
       case 'PENDIENTE_PAGO':
         return 'Pago pendiente';
       case 'ASIGNADO':
-        return 'Asignado';
+        return 'En curso';
       case 'EN_PROCESO':
       case 'EN_CURSO':
         return 'En curso';
@@ -1267,7 +1267,9 @@ if (_opError != null) {
           info['payment_status'] ??
           info['status'],
     );
-    if (status != 'REQUIRES_ACTION' && status != 'PENDING') return false;
+    if (status != 'REQUIRES_ACTION' &&
+        status != 'PENDING' &&
+        status != 'REQUIRES_PAYMENT_METHOD') return false;
     final intentId = info['paymentIntentId'] ??
         info['payment_intent_id'] ??
         info['paymentIntent'] ??

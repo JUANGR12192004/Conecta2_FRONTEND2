@@ -157,7 +157,7 @@ class _ClientHomeState extends State<ClientHome>
       case 'PENDIENTE_PAGO':
         return 'Pago pendiente';
       case 'ASIGNADO':
-        return 'Asignado';
+        return 'En curso';
       case 'EN_PROCESO':
       case 'EN_CURSO':
         return 'En curso';
@@ -390,8 +390,30 @@ class _ClientHomeState extends State<ClientHome>
       fallbackServiceId: fallbackServiceId,
       fallbackServiceTitle: fallbackServiceTitle,
     );
-    if (normalized != null) {
-      _queuePaymentInfoUpdate(normalized);
+    final infoForQueue = normalized ?? combined;
+    final serviceIdToUpdate =
+        _asInt(infoForQueue['serviceId'] ?? fallbackServiceId);
+    final statusUpper =
+        _paymentStatusUpper(infoForQueue['paymentStatus'] ?? infoForQueue['status']);
+    if (infoForQueue.isNotEmpty) {
+      _queuePaymentInfoUpdate(infoForQueue);
+    }
+    if (serviceIdToUpdate != null) {
+      final serviceState =
+          _serviceStateFromPayload(response) ?? _serviceStateFromPayload(combined);
+      String? nextState = serviceState;
+      if (nextState == null || nextState.isEmpty) {
+        if (statusUpper == 'SUCCEEDED') {
+          nextState = 'ASIGNADO';
+        } else if (statusUpper == 'FAILED' || statusUpper == 'REQUIRES_PAYMENT_METHOD') {
+          nextState = 'PENDIENTE';
+        } else if (statusUpper.isNotEmpty) {
+          nextState = 'PENDIENTE_PAGO';
+        }
+      }
+      if (nextState != null && nextState.isNotEmpty) {
+        _updateLocalServiceState(serviceIdToUpdate, nextState);
+      }
     }
   }
 
@@ -407,6 +429,8 @@ class _ClientHomeState extends State<ClientHome>
     switch (upper) {
       case 'PENDING':
         return 'Pago pendiente';
+      case 'REQUIRES_PAYMENT_METHOD':
+        return 'Requiere otro método';
       case 'REQUIRES_ACTION':
         return 'Se requiere acción';
       case 'SUCCEEDED':
@@ -428,6 +452,7 @@ class _ClientHomeState extends State<ClientHome>
       case 'SUCCEEDED':
         return Colors.green;
       case 'FAILED':
+      case 'REQUIRES_PAYMENT_METHOD':
         return Colors.red;
       case 'REQUIRES_ACTION':
         return Colors.deepOrange;
@@ -533,6 +558,19 @@ class _ClientHomeState extends State<ClientHome>
         return svc;
       }).toList();
     });
+  }
+
+  String? _serviceStateFromPayload(Map<String, dynamic> payload) {
+    final direct = (payload['estadoServicio'] ?? payload['estado'] ?? payload['serviceStatus'] ?? payload['serviceState'])
+        ?.toString()
+        .trim();
+    if (direct != null && direct.isNotEmpty) return direct.toUpperCase();
+    final nested = payload['servicio'] ?? payload['service'];
+    if (nested is Map) {
+      final nestedRaw = (nested['estado'] ?? nested['estadoServicio'] ?? nested['status'])?.toString().trim();
+      if (nestedRaw != null && nestedRaw.isNotEmpty) return nestedRaw.toUpperCase();
+    }
+    return null;
   }
 
   String _stringFromSources(List<String> keys) {
@@ -693,19 +731,25 @@ class _ClientHomeState extends State<ClientHome>
       if (estadoRaw == 'ACEPTADA') {
         final serviceId = _serviceIdFromOffer(offer);
         if (serviceId != null) {
+          final nextStateFromOffer = _serviceStateFromPayload(offer);
           final paymentInfo = _normalizePaymentInfo(
             offer,
             fallbackServiceId: serviceId,
             fallbackOfferId: _asInt(offer['id']),
             fallbackServiceTitle: _serviceTitleById(serviceId),
           );
-          final statusUpper =
-              _paymentStatusUpper(paymentInfo?['paymentStatus']);
-          if (statusUpper == 'SUCCEEDED') {
-            _updateLocalServiceState(serviceId, 'ASIGNADO');
-          } else {
-            _updateLocalServiceState(serviceId, 'PENDIENTE_PAGO');
+          final statusUpper = _paymentStatusUpper(paymentInfo?['paymentStatus']);
+          String? nextState = nextStateFromOffer;
+          if (nextState == null || nextState.isEmpty) {
+            if (statusUpper == 'SUCCEEDED') {
+              nextState = 'ASIGNADO';
+            } else if (statusUpper == 'FAILED' || statusUpper == 'REQUIRES_PAYMENT_METHOD') {
+              nextState = 'PENDIENTE';
+            } else {
+              nextState = 'PENDIENTE_PAGO';
+            }
           }
+          _updateLocalServiceState(serviceId, nextState);
           if (paymentInfo != null) {
             _queuePaymentInfoUpdate(paymentInfo);
           }
@@ -1178,7 +1222,7 @@ class _ClientHomeState extends State<ClientHome>
                             'Servicio: ' + serviceTitle,
                           if (estado.isNotEmpty) 'Estado: ' + estado,
                           if (turno.isNotEmpty) 'Turno: ' + turno,
-                          if (ultimo.isNotEmpty) '?ltima oferta: ' + ultimo,
+                          if (ultimo.isNotEmpty) 'Última oferta: ' + ultimo,
                           if (montoActual != null)
                             'Monto vigente: ' + _formatCurrency(montoActual),
                           if (montoTrab != null)
@@ -1217,12 +1261,17 @@ class _ClientHomeState extends State<ClientHome>
                             paymentStatusUpper != 'NOT_REQUIRED';
                         final trailing = waitingPayment
                             ? FilledButton.tonalIcon(
-                                icon: Icon(paymentStatusUpper == 'FAILED'
+                                icon: Icon((paymentStatusUpper == 'FAILED' ||
+                                        paymentStatusUpper ==
+                                            'REQUIRES_PAYMENT_METHOD')
                                     ? Icons.refresh
                                     : Icons.lock_open),
-                                label: Text(paymentStatusUpper == 'FAILED'
-                                    ? 'Reintentar pago'
-                                    : 'Ir al checkout'),
+                                label: Text(
+                                    (paymentStatusUpper == 'FAILED' ||
+                                            paymentStatusUpper ==
+                                                'REQUIRES_PAYMENT_METHOD')
+                                        ? 'Reintentar pago'
+                                        : 'Ir al checkout'),
                                 onPressed: () => _openPaymentCheckout(
                                   offerId: offerId,
                                   serviceId: serviceId,
@@ -1258,7 +1307,7 @@ class _ClientHomeState extends State<ClientHome>
                         return ListTile(
                           leading: const CircleAvatar(
                               child: Icon(Icons.campaign_outlined)),
-                          title: Text(workerLabel + ' ofert?'),
+                          title: Text('$workerLabel ofertó'),
                           subtitle: subtitleWidget,
                           trailing: trailing,
                         );
@@ -1715,7 +1764,8 @@ class _ClientHomeState extends State<ClientHome>
     final statusUpper = _paymentStatusUpper(info['paymentStatus']);
     final label = _paymentStatusLabel(statusUpper);
     final amount = _asDouble(info['amount']);
-    final isFailed = statusUpper == 'FAILED';
+    final isFailed =
+        statusUpper == 'FAILED' || statusUpper == 'REQUIRES_PAYMENT_METHOD';
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.all(12),
@@ -1798,7 +1848,8 @@ class _ClientHomeState extends State<ClientHome>
     final label = _paymentStatusLabel(statusUpper);
     final amount = _asDouble(normalized?['amount']);
     final offerId = _asInt(normalized?['offerId']);
-    final isFailed = statusUpper == 'FAILED';
+    final isFailed =
+        statusUpper == 'FAILED' || statusUpper == 'REQUIRES_PAYMENT_METHOD';
     final color = isFailed
         ? Colors.red.withOpacity(0.05)
         : Colors.orange.withOpacity(0.08);
