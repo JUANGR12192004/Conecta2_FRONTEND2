@@ -1,8 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import '../ui/theme/app_theme.dart';
 
-/// Página de registro para CLIENTE con el mismo estilo/UX que RegisterWorker
+/// Página de registro para CLIENTE con estilo renovado
 class RegisterClientPage extends StatefulWidget {
   const RegisterClientPage({super.key});
 
@@ -58,7 +59,6 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
   Future<void> _register() async {
     _clearFieldErrors();
 
-    // Validaciones locales
     if (!_formKey.currentState!.validate()) return;
     if (!_termsAccepted) {
       _showSnack("Debes aceptar los términos y condiciones.");
@@ -75,7 +75,7 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
       "nombreCompleto": _nameCtrl.text.trim(),
       "correo": _emailCtrl.text.trim(),
       "contrasena": _passCtrl.text,
-      "confirmarContrasena": _confirmCtrl.text, // 👈 Importante para evitar 400
+      "confirmarContrasena": _confirmCtrl.text,
       "celular": _phoneCtrl.text.trim(),
     };
 
@@ -88,7 +88,6 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
       if (!mounted) return;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Esperamos respuesta como { id, mensaje: "...Revisa tu correo..." }
         String msg = "Registro recibido. Revisa tu correo para activar la cuenta.";
         try {
           final Map<String, dynamic> data = jsonDecode(response.body);
@@ -96,15 +95,12 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
         } catch (_) {}
 
         _showSnack(msg, background: Colors.green);
-
-        // Pequeño delay para que el usuario vea el mensaje
         await Future.delayed(const Duration(milliseconds: 900));
         if (!mounted) return;
         Navigator.pushReplacementNamed(context, "/login", arguments: {"role": "client"});
         return;
       }
 
-      // Manejo de errores genérico (mensaje + errores por campo)
       final content = response.body;
       dynamic decoded;
       try {
@@ -113,7 +109,6 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
         decoded = null;
       }
 
-      // Si el backend devolvió {errores: ["campo: mensaje", ...]}
       if (decoded is Map && decoded.containsKey("errores")) {
         final List<dynamic> errores = decoded["errores"];
         final Map<String, String> parsed = {};
@@ -166,210 +161,197 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Paleta para CLIENTE (verde)
-    const Color primary = Color(0xFF2E7D32);
-    const Color secondary = Color(0xFF66BB6A);
-
+    final theme = Theme.of(context);
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [primary, secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: Card(
-                  elevation: 10,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
-                          const Icon(Icons.person, size: 56, color: primary),
-                          const SizedBox(height: 12),
-                          const Text(
-                            "Registro de Cliente",
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("Crea tu cuenta", style: theme.textTheme.headlineSmall),
+                  Chip(
+                    avatar: const Icon(Icons.verified, color: AppColors.primary, size: 18),
+                    label: const Text("Identidad verificada"),
+                    backgroundColor: AppColors.surface,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                "Conecta con trabajadores confiables y paga seguro.",
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: const [
+                  _Tag(text: "Pagos protegidos", icon: Icons.lock_outline),
+                  _Tag(text: "Soporte 24/7", icon: Icons.support_agent),
+                  _Tag(text: "Servicios verificados", icon: Icons.shield_moon_outlined),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Datos personales", style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _nameCtrl,
+                          decoration: const InputDecoration(
+                            labelText: "Nombre completo",
+                            prefixIcon: Icon(Icons.person),
                           ),
-                          const SizedBox(height: 24),
-
-                          // Nombre completo
-                          TextFormField(
-                            controller: _nameCtrl,
-                            decoration: const InputDecoration(
-                              labelText: "Nombre completo",
-                              prefixIcon: Icon(Icons.person),
-                            ),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? "Ingresa tu nombre" : null,
+                          validator: (value) {
+                            if (value == null || value.trim().length < 3) {
+                              return "Ingresa tu nombre (mínimo 3 caracteres)";
+                            }
+                            return null;
+                          },
+                        ),
+                        _fieldError("nombreCompleto"),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _emailCtrl,
+                          decoration: const InputDecoration(
+                            labelText: "Correo electrónico",
+                            prefixIcon: Icon(Icons.email),
                           ),
-                          _fieldError("nombreCompleto"),
-                          const SizedBox(height: 14),
-
-                          // Correo
-                          TextFormField(
-                            controller: _emailCtrl,
-                            decoration: const InputDecoration(
-                              labelText: "Correo electrónico",
-                              prefixIcon: Icon(Icons.email),
-                            ),
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return "Ingresa tu correo";
-                              final rx = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-                              if (!rx.hasMatch(v.trim())) return "Correo inválido";
-                              return null;
-                            },
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) return "Ingresa tu correo";
+                            final regex = RegExp(r"^[^@]+@[^@]+\.[^@]+");
+                            if (!regex.hasMatch(value)) return "Correo inválido";
+                            return null;
+                          },
+                        ),
+                        _fieldError("correo"),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _phoneCtrl,
+                          decoration: const InputDecoration(
+                            labelText: "Celular",
+                            prefixIcon: Icon(Icons.phone),
                           ),
-                          _fieldError("correo"),
-                          const SizedBox(height: 14),
-
-                          // Contraseña
-                          TextFormField(
-                            controller: _passCtrl,
-                            obscureText: _obscurePass,
-                            decoration: InputDecoration(
-                              labelText: "Contraseña",
-                              prefixIcon: const Icon(Icons.lock),
-                              suffixIcon: IconButton(
-                                onPressed: () => setState(() => _obscurePass = !_obscurePass),
-                                icon: Icon(_obscurePass ? Icons.visibility : Icons.visibility_off),
-                              ),
-                            ),
-                            validator: (v) {
-                              if (v == null || v.isEmpty) return "Ingresa tu contraseña";
-                              if (v.length < 8) return "La contraseña debe tener al menos 8 caracteres";
-                              final rx = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).+$');
-                              if (!rx.hasMatch(v)) {
-                                return "Debe incluir mayúsculas, minúsculas, números y un carácter especial";
-                              }
-                              return null;
-                            },
-                          ),
-                          _fieldError("contrasena"),
-                          const SizedBox(height: 14),
-
-                          // Confirmar contraseña
-                          TextFormField(
-                            controller: _confirmCtrl,
-                            obscureText: _obscureConfirm,
-                            decoration: InputDecoration(
-                              labelText: "Confirmar contraseña",
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              suffixIcon: IconButton(
-                                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                                icon: Icon(_obscureConfirm ? Icons.visibility : Icons.visibility_off),
-                              ),
-                            ),
-                            validator: (v) {
-                              if (v == null || v.isEmpty) return "Confirma tu contraseña";
-                              if (v != _passCtrl.text) return "Las contraseñas no coinciden";
-                              return null;
-                            },
-                          ),
-                          _fieldError("confirmarContrasena"),
-                          const SizedBox(height: 14),
-
-                          // Número de celular
-                          TextFormField(
-                            controller: _phoneCtrl,
-                            decoration: const InputDecoration(
-                              labelText: "Número de celular",
-                              prefixIcon: Icon(Icons.phone),
-                            ),
-                            keyboardType: TextInputType.phone,
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? "Ingresa tu número de celular" : null,
-                          ),
-                          _fieldError("celular"),
-                          const SizedBox(height: 10),
-
-                          // Términos
-                          Row(
-                            children: [
-                              Checkbox(
-                                value: _termsAccepted,
-                                onChanged: (v) => setState(() => _termsAccepted = v ?? false),
-                              ),
-                              const Expanded(
-                                child: Text("Acepto términos y condiciones"),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Botón registrarse
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _loading ? null : _register,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primary,
-                                minimumSize: const Size(double.infinity, 48),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: _loading
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text("Registrarse"),
+                          keyboardType: TextInputType.phone,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) return "Ingresa tu celular";
+                            if (value.length < 7) return "Número inválido";
+                            return null;
+                          },
+                        ),
+                        _fieldError("celular"),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _passCtrl,
+                          obscureText: _obscurePass,
+                          decoration: InputDecoration(
+                            labelText: "Contraseña",
+                            prefixIcon: const Icon(Icons.lock),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscurePass ? Icons.visibility : Icons.visibility_off),
+                              onPressed: () => setState(() => _obscurePass = !_obscurePass),
                             ),
                           ),
-                          const SizedBox(height: 10),
-
-                          // Ya tengo cuenta → login (modo client)
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton(
-                              onPressed: _loading
-                                  ? null
-                                  : () => Navigator.pushReplacementNamed(
-                                        context,
-                                        "/login",
-                                        arguments: {"role": "client"},
-                                      ),
-                              style: OutlinedButton.styleFrom(
-                                minimumSize: const Size(double.infinity, 48),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: const Text("Ya tengo cuenta"),
+                          validator: (value) {
+                            if (value == null || value.length < 6) return "Mínimo 6 caracteres";
+                            return null;
+                          },
+                        ),
+                        _fieldError("contrasena"),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: _confirmCtrl,
+                          obscureText: _obscureConfirm,
+                          decoration: InputDecoration(
+                            labelText: "Confirmar contraseña",
+                            prefixIcon: const Icon(Icons.lock_outline),
+                            suffixIcon: IconButton(
+                              icon: Icon(_obscureConfirm ? Icons.visibility : Icons.visibility_off),
+                              onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
                             ),
                           ),
-                          const SizedBox(height: 6),
-
-                          // Volver al inicio (selector de rol)
-                          TextButton(
-                            onPressed: () => Navigator.pushNamedAndRemoveUntil(context, "/", (r) => false),
-                            child: const Text("⬅️ Volver al inicio"),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) return "Confirma tu contraseña";
+                            return null;
+                          },
+                        ),
+                        _fieldError("confirmarContrasena"),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _termsAccepted,
+                              onChanged: (val) => setState(() => _termsAccepted = val ?? false),
+                            ),
+                            const Expanded(
+                              child: Text("Acepto los términos y condiciones y la política de privacidad."),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: _loading ? null : _register,
+                            child: _loading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text("Crear cuenta"),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Tag extends StatelessWidget {
+  final String text;
+  final IconData icon;
+  const _Tag({required this.text, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppColors.primary),
+          const SizedBox(width: 6),
+          Text(text, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }

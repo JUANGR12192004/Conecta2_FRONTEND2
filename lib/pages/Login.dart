@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../ui/theme/app_theme.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -29,9 +30,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Color get primary =>
-      _role == 'worker' ? const Color(0xFF1E88E5) : const Color(0xFF2E7D32);
+      _role == 'worker' ? const Color(0xFF0B8AD9) : AppColors.primary;
   Color get secondary =>
-      _role == 'worker' ? const Color(0xFF64B5F6) : const Color(0xFF66BB6A);
+      _role == 'worker' ? const Color(0xFF19C3FF) : const Color(0xFF00D7B0);
 
   String get title => _role == 'worker'
       ? "Inicia sesión como Trabajador"
@@ -162,13 +163,20 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final features = [
+      (Icons.lock_outline, "Pagos seguros"),
+      (Icons.verified_user, "Identidad validada"),
+      (Icons.shield, "Soporte y seguridad"),
+    ];
+
     return Scaffold(
-      body: Container(
+      body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [primary, secondary],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
         ),
         child: SafeArea(
@@ -176,141 +184,142 @@ class _LoginPageState extends State<LoginPage> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: Card(
-                  elevation: 10,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 24,
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: Colors.white.withOpacity(0.15),
+                          child: Icon(
+                            _role == 'worker' ? Icons.handyman : Icons.emoji_people,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          title,
+                          style: theme.textTheme.headlineSmall?.copyWith(color: Colors.white),
+                        ),
+                      ],
                     ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        children: [
-                          Icon(
-                            _role == 'worker' ? Icons.work : Icons.person,
-                            size: 56,
-                            color: primary,
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            title,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
+                    const SizedBox(height: 10),
+                    Text(
+                      "Conecta con oficios verificados, paga seguro y lleva seguimiento en tiempo real.",
+                      style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: features
+                          .map(
+                            (f) => Chip(
+                              avatar: Icon(f.$1, size: 18, color: primary),
+                              label: Text(f.$2),
+                              backgroundColor: Colors.white,
                             ),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // Email
-                          TextFormField(
-                            controller: _emailCtrl,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              labelText: "Correo electrónico",
-                              prefixIcon: Icon(Icons.email),
-                            ),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return "Ingresa tu correo";
-                              }
-                              final rx = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-                              if (!rx.hasMatch(v.trim())) {
-                                return "Correo inválido";
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Password
-                          TextFormField(
-                            controller: _passwordCtrl,
-                            obscureText: _obscure,
-                            decoration: InputDecoration(
-                              labelText: "Contraseña",
-                              prefixIcon: const Icon(Icons.lock),
-                              suffixIcon: IconButton(
-                                onPressed: () =>
-                                    setState(() => _obscure = !_obscure),
-                                icon: Icon(
-                                  _obscure
-                                      ? Icons.visibility
-                                      : Icons.visibility_off,
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 18),
+                    Card(
+                      elevation: 8,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+                        child: Form(
+                          key: _formKey,
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(_role == 'worker' ? Icons.construction : Icons.home_repair_service,
+                                      color: primary),
+                                  const SizedBox(width: 10),
+                                  Text("Acceso seguro", style: theme.textTheme.titleMedium),
+                                ],
+                              ),
+                              const SizedBox(height: 16),
+                              TextFormField(
+                                controller: _emailCtrl,
+                                keyboardType: TextInputType.emailAddress,
+                                decoration: const InputDecoration(
+                                  labelText: "Correo electrónico",
+                                  prefixIcon: Icon(Icons.email_outlined),
+                                ),
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return "Ingresa tu correo";
+                                  }
+                                  final rx = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+                                  if (!rx.hasMatch(v.trim())) {
+                                    return "Correo inválido";
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 14),
+                              TextFormField(
+                                controller: _passwordCtrl,
+                                obscureText: _obscure,
+                                decoration: InputDecoration(
+                                  labelText: "Contraseña",
+                                  prefixIcon: const Icon(Icons.lock_outline),
+                                  suffixIcon: IconButton(
+                                    onPressed: () => setState(() => _obscure = !_obscure),
+                                    icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
+                                  ),
+                                ),
+                                validator: (v) => (v == null || v.isEmpty) ? "Ingresa tu contraseña" : null,
+                              ),
+                              const SizedBox(height: 8),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () {},
+                                  child: const Text("¿Olvidaste tu contraseña?"),
                                 ),
                               ),
-                            ),
-                            validator: (v) => (v == null || v.isEmpty)
-                                ? "Ingresa tu contraseña"
-                                : null,
-                          ),
-                          const SizedBox(height: 8),
-
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {
-                                // TODO: recuperación de contraseña si aplica
-                              },
-                              child: const Text("¿Olvidaste tu contraseña?"),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Botón de login
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _loading ? null : _doLogin,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primary,
-                                minimumSize: const Size(double.infinity, 48),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton(
+                                  onPressed: _loading ? null : _doLogin,
+                                  child: _loading
+                                      ? const SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : const Text("Iniciar sesión"),
                                 ),
                               ),
-                              child: _loading
-                                  ? const SizedBox(
-                                      height: 20,
-                                      width: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    )
-                                  : const Text("Iniciar Sesión"),
-                            ),
+                              const SizedBox(height: 10),
+                              TextButton(
+                                onPressed: _goToRegister,
+                                child: const Text("¿No tienes cuenta? Regístrate aquí"),
+                              ),
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.pushNamedAndRemoveUntil(
+                                    context,
+                                    "/",
+                                    (route) => false,
+                                  );
+                                },
+                                child: const Text("⬅️ Volver al inicio"),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 10),
-
-                          // Ir a registro según rol
-                          TextButton(
-                            onPressed: _goToRegister,
-                            child: const Text(
-                              "¿No tienes cuenta? Regístrate aquí",
-                            ),
-                          ),
-
-                          // Volver al inicio (selector de rol)
-                          TextButton(
-                            onPressed: () {
-                              Navigator.pushNamedAndRemoveUntil(
-                                context,
-                                "/",
-                                (route) => false,
-                              );
-                            },
-                            child: const Text("⬅️ Volver al inicio"),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),

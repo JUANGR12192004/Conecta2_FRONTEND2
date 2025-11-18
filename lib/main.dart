@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'ui/theme/app_theme.dart';
 
 // OJO: respeta las mayúsculas/minúsculas EXACTAS de tus archivos/clases
 import 'pages/login.dart';
@@ -32,17 +33,7 @@ class MyApp extends StatelessWidget {
         Locale('en', 'US'),
       ],
       title: 'Workify',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.grey[100],
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-        ),
-      ),
+      theme: AppTheme.light(),
       initialRoute: "/",
       routes: {
         "/": (context) => const HomePage(),
