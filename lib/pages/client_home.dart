@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
 
 import '../services/api_service.dart';
 import '../services/api_service_payment.dart';
@@ -26,6 +27,7 @@ class _ClientHomeState extends State<ClientHome>
 
   Map<String, dynamic>? _profile;
   int? _clientId;
+  AppLocalizations get _l10n => AppLocalizations.of(context)!;
   bool _didLoadArgs = false;
   Map<String, dynamic>? _initialArgs;
 
@@ -114,13 +116,14 @@ class _ClientHomeState extends State<ClientHome>
   String _participantLabel(dynamic raw) {
     final value = raw?.toString().trim();
     if (value == null || value.isEmpty) return '';
-    switch (value.toUpperCase()) {
+    final upper = value.toUpperCase();
+    switch (upper) {
       case 'CLIENTE':
       case 'CUSTOMER':
-        return 'Cliente';
+        return _l10n.clientLabel;
       case 'TRABAJADOR':
       case 'WORKER':
-        return 'Trabajador';
+        return _l10n.workerLabel;
       default:
         return value[0].toUpperCase() + value.substring(1).toLowerCase();
     }
@@ -129,20 +132,21 @@ class _ClientHomeState extends State<ClientHome>
   String _negotiationStateLabel(dynamic raw) {
     final value = raw?.toString().trim();
     if (value == null || value.isEmpty) return '';
-    switch (value.toUpperCase()) {
+    final upper = value.toUpperCase();
+    switch (upper) {
       case 'EN_NEGOCIACION':
-        return 'En negociación';
+        return _l10n.negotiationInNegotiation;
       case 'EN_CURSO':
       case 'EN_PROCESO':
-        return 'En curso';
+        return _l10n.negotiationInProgress;
       case 'ACEPTADA':
-        return 'Aceptada';
+        return _l10n.negotiationAccepted;
       case 'RECHAZADA':
-        return 'Rechazada';
+        return _l10n.negotiationRejected;
       case 'CERRADA':
-        return 'Cerrada';
+        return _l10n.negotiationClosed;
       case 'PENDIENTE':
-        return 'Pendiente';
+        return _l10n.negotiationPending;
       default:
         return value[0].toUpperCase() + value.substring(1).toLowerCase();
     }
@@ -150,21 +154,20 @@ class _ClientHomeState extends State<ClientHome>
 
   String _serviceStateLabel(dynamic raw) {
     final value = raw?.toString().trim() ?? '';
-    if (value.isEmpty) return 'Pendiente';
+    if (value.isEmpty) return _l10n.serviceStatePending;
     switch (value.toUpperCase()) {
       case 'PENDIENTE':
-        return 'Pendiente';
+        return _l10n.serviceStatePending;
       case 'PENDIENTE_PAGO':
-        return 'Pago pendiente';
+        return _l10n.serviceStatePaymentPending;
       case 'ASIGNADO':
-        return 'En curso';
       case 'EN_PROCESO':
       case 'EN_CURSO':
-        return 'En curso';
+        return _l10n.serviceStateInProgress;
       case 'FINALIZADO':
-        return 'Finalizado';
+        return _l10n.serviceStateFinished;
       case 'CANCELADO':
-        return 'Expirado';
+        return _l10n.serviceStateExpired;
       default:
         return value[0].toUpperCase() + value.substring(1).toLowerCase();
     }
@@ -428,20 +431,20 @@ class _ClientHomeState extends State<ClientHome>
     final upper = _paymentStatusUpper(raw);
     switch (upper) {
       case 'PENDING':
-        return 'Pago pendiente';
+        return _l10n.paymentStatusPending;
       case 'REQUIRES_PAYMENT_METHOD':
-        return 'Requiere otro método';
+        return _l10n.paymentStatusRequiresPaymentMethod;
       case 'REQUIRES_ACTION':
-        return 'Se requiere acción';
+        return _l10n.paymentStatusRequiresAction;
       case 'SUCCEEDED':
-        return 'Pago confirmado';
+        return _l10n.paymentStatusSucceeded;
       case 'FAILED':
-        return 'Pago rechazado';
+        return _l10n.paymentStatusFailed;
       case 'NOT_REQUIRED':
-        return 'No requiere pago';
+        return _l10n.paymentStatusNotRequired;
       default:
         return upper.isEmpty
-            ? 'Pago'
+            ? _l10n.paymentStatusDefault
             : upper[0].toUpperCase() + upper.substring(1).toLowerCase();
     }
   }
@@ -483,7 +486,7 @@ class _ClientHomeState extends State<ClientHome>
             '')
         .toString();
     if (raw.isNotEmpty) return raw;
-    return 'Servicio';
+    return _l10n.serviceDefaultTitle;
   }
 
   void _showClientNotification(String message, {Color background = _primary}) {
@@ -513,7 +516,7 @@ class _ClientHomeState extends State<ClientHome>
       if (!_expiryWarningIds.add(serviceId)) return;
       final title = _serviceTitle(service);
       _showClientNotification(
-        'Atención: el servicio "$title" vence hoy y será eliminado automáticamente a las 00:00 si sigue pendiente.',
+        _l10n.serviceExpirationWarning(title),
         background: Colors.orange,
       );
       return;
@@ -957,9 +960,8 @@ class _ClientHomeState extends State<ClientHome>
               if (requiresPayment) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                          'Oferta aceptada. Completa el pago para asignar el servicio.'),
+                    SnackBar(
+                      content: Text(_l10n.offerAcceptedMessage),
                       behavior: SnackBarBehavior.floating,
                       backgroundColor: _primary,
                     ),
@@ -980,8 +982,8 @@ class _ClientHomeState extends State<ClientHome>
               } else {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Servicio asignado'),
+                    SnackBar(
+                      content: Text(_l10n.serviceAssignedMessage),
                       behavior: SnackBarBehavior.floating,
                       backgroundColor: _primary,
                     ),
@@ -992,7 +994,7 @@ class _ClientHomeState extends State<ClientHome>
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                    content: Text('Error: $e'),
+                    content: Text(_l10n.errorMessage(e)),
                     behavior: SnackBarBehavior.floating,
                     backgroundColor: Colors.red),
               );
@@ -1009,8 +1011,8 @@ class _ClientHomeState extends State<ClientHome>
               }
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Oferta rechazada'),
+                  SnackBar(
+                      content: Text(_l10n.offerRejectedMessage),
                       behavior: SnackBarBehavior.floating,
                       backgroundColor: Colors.red),
                 );
@@ -1019,7 +1021,7 @@ class _ClientHomeState extends State<ClientHome>
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                    content: Text('Error: $e'),
+                    content: Text(_l10n.errorMessage(e)),
                     behavior: SnackBarBehavior.floating,
                     backgroundColor: Colors.red),
               );
@@ -1035,7 +1037,7 @@ class _ClientHomeState extends State<ClientHome>
               builder: (_) => StatefulBuilder(
                 builder: (dialogCtx, setDialogState) {
                   return AlertDialog(
-                    title: const Text('Enviar contraoferta'),
+                    title: Text(_l10n.counterofferTitle),
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -1044,18 +1046,18 @@ class _ClientHomeState extends State<ClientHome>
                           autofocus: true,
                           keyboardType: const TextInputType.numberWithOptions(
                               decimal: true),
-                          decoration: const InputDecoration(
-                            labelText: 'Nuevo precio',
-                            prefixIcon: Icon(Icons.attach_money),
+                          decoration: InputDecoration(
+                            labelText: _l10n.counterofferPriceLabel,
+                            prefixIcon: const Icon(Icons.attach_money),
                           ),
                         ),
                         const SizedBox(height: 12),
                         TextField(
                           controller: noteCtrl,
                           maxLines: 2,
-                          decoration: const InputDecoration(
-                            labelText: 'Mensaje (opcional)',
-                            prefixIcon: Icon(Icons.message_outlined),
+                          decoration: InputDecoration(
+                            labelText: _l10n.counterofferNoteLabel,
+                            prefixIcon: const Icon(Icons.message_outlined),
                           ),
                         ),
                         if (errorText != null)
@@ -1073,7 +1075,7 @@ class _ClientHomeState extends State<ClientHome>
                     actions: [
                       TextButton(
                           onPressed: () => Navigator.pop(dialogCtx),
-                          child: const Text('Cancelar')),
+                          child: Text(_l10n.cancelButton)),
                       TextButton(
                         onPressed: () {
                           final raw =
@@ -1081,7 +1083,7 @@ class _ClientHomeState extends State<ClientHome>
                           final value = double.tryParse(raw);
                           if (value == null || value <= 0) {
                             setDialogState(
-                                () => errorText = 'Ingresa un monto válido');
+                                () => errorText = _l10n.enterValidAmount);
                             return;
                           }
                           final note = noteCtrl.text.trim();
@@ -1090,7 +1092,7 @@ class _ClientHomeState extends State<ClientHome>
                             if (note.isNotEmpty) "mensaje": note,
                           });
                         },
-                        child: const Text('Enviar'),
+                        child: Text(_l10n.sendButton),
                       ),
                     ],
                   );
@@ -1104,23 +1106,23 @@ class _ClientHomeState extends State<ClientHome>
               await ApiService.clientCounterOffer(
                   offerId: id, monto: monto, mensaje: mensaje);
               removeLocal(id);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Contraoferta enviada'),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: _primary),
-                );
-              }
-            } catch (e) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: Text('Error: $e'),
-                    behavior: SnackBarBehavior.floating,
-                    backgroundColor: Colors.red),
-              );
-            }
+               if (mounted) {
+                 ScaffoldMessenger.of(context).showSnackBar(
+                   SnackBar(
+                       content: Text(_l10n.counterofferSent),
+                       behavior: SnackBarBehavior.floating,
+                       backgroundColor: _primary),
+                 );
+               }
+             } catch (e) {
+               if (!mounted) return;
+               ScaffoldMessenger.of(context).showSnackBar(
+                 SnackBar(
+                     content: Text(_l10n.errorMessage(e)),
+                     behavior: SnackBarBehavior.floating,
+                     backgroundColor: Colors.red),
+               );
+             }
           }
 
           return Padding(
@@ -1136,21 +1138,21 @@ class _ClientHomeState extends State<ClientHome>
                         color: Colors.black26,
                         borderRadius: BorderRadius.circular(8))),
                 const SizedBox(height: 12),
-                const Text('Notificaciones',
+                Text(_l10n.notificationsTitle,
                     style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                        const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
                 if (_pendingPaymentsByService.isNotEmpty) ...[
-                  const Text('Pagos pendientes',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  Text(_l10n.pendingPaymentsSection,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   ..._pendingPaymentsByService.values
                       .map(_buildPaymentReminderCard),
                   const SizedBox(height: 12),
                   const Divider(),
                   const SizedBox(height: 12),
-                  const Text('Ofertas en negociación',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
+                  Text(_l10n.offersInNegotiationSection,
+                      style: const TextStyle(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                 ],
                 if (_offersLoading && _offers.isEmpty)
@@ -1172,10 +1174,10 @@ class _ClientHomeState extends State<ClientHome>
                     ),
                   )
                 else if (_offers.isEmpty)
-                  const Padding(
-                      padding: EdgeInsets.all(12),
-                      child: Text('No tienes ofertas nuevas.',
-                          style: TextStyle(color: Colors.black54)))
+                  Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(_l10n.noNewOffers,
+                          style: const TextStyle(color: Colors.black54)))
                 else
                   Flexible(
                     child: ListView.separated(
@@ -1219,17 +1221,16 @@ class _ClientHomeState extends State<ClientHome>
                         final serviceId = _serviceIdFromOffer(o);
                         final subtitleLines = <String>[
                           if (serviceTitle.isNotEmpty)
-                            'Servicio: ' + serviceTitle,
-                          if (estado.isNotEmpty) 'Estado: ' + estado,
-                          if (turno.isNotEmpty) 'Turno: ' + turno,
-                          if (ultimo.isNotEmpty) 'Última oferta: ' + ultimo,
+                            _l10n.serviceLabel(serviceTitle),
+                          if (estado.isNotEmpty) _l10n.serviceStateLabel(estado),
+                          if (turno.isNotEmpty) _l10n.serviceTurnLabel(turno),
+                          if (ultimo.isNotEmpty) _l10n.lastOfferLabel(ultimo),
                           if (montoActual != null)
-                            'Monto vigente: ' + _formatCurrency(montoActual),
+                            _l10n.currentAmountLabel(_formatCurrency(montoActual)),
                           if (montoTrab != null)
-                            'Propuesta del trabajador: ' +
-                                _formatCurrency(montoTrab),
+                            _l10n.workerProposalLabel(_formatCurrency(montoTrab)),
                           if (montoCliente != null)
-                            'Tu oferta: ' + _formatCurrency(montoCliente),
+                            _l10n.clientOfferLabel(_formatCurrency(montoCliente)),
                         ];
                         final paymentInfo = _normalizePaymentInfo(
                           o,
@@ -1244,8 +1245,8 @@ class _ClientHomeState extends State<ClientHome>
                         );
                         if (paymentStatusUpper.isNotEmpty &&
                             paymentStatusUpper != 'NOT_REQUIRED') {
-                          subtitleLines.add('Estado de pago: ' +
-                              _paymentStatusLabel(paymentStatusUpper));
+                          subtitleLines.add(_l10n.paymentStatusLabel(
+                              _paymentStatusLabel(paymentStatusUpper)));
                         }
                         final subtitleWidget = subtitleLines.isEmpty
                             ? null
@@ -1282,21 +1283,21 @@ class _ClientHomeState extends State<ClientHome>
                                 spacing: 8,
                                 children: [
                                   IconButton(
-                                      tooltip: 'Aceptar',
+                                      tooltip: _l10n.acceptTooltip,
                                       icon: const Icon(Icons.check_circle,
                                           color: Colors.green),
                                       onPressed: canRespond
                                           ? () => doAccept(offerId, serviceId)
                                           : null),
                                   IconButton(
-                                      tooltip: 'Rechazar',
+                                      tooltip: _l10n.rejectTooltip,
                                       icon: const Icon(Icons.cancel,
                                           color: Colors.red),
                                       onPressed: canRespond
                                           ? () => doReject(offerId, serviceId)
                                           : null),
                                   IconButton(
-                                      tooltip: 'Contraoferta',
+                                      tooltip: _l10n.counterofferTooltip,
                                       icon: const Icon(Icons.swap_horiz,
                                           color: Colors.orange),
                                       onPressed: canRespond
@@ -1307,7 +1308,7 @@ class _ClientHomeState extends State<ClientHome>
                         return ListTile(
                           leading: const CircleAvatar(
                               child: Icon(Icons.campaign_outlined)),
-                          title: Text('$workerLabel ofertó'),
+                          title: Text(_l10n.workerOfferLabel(workerLabel)),
                           subtitle: subtitleWidget,
                           trailing: trailing,
                         );
@@ -1339,12 +1340,12 @@ class _ClientHomeState extends State<ClientHome>
     if (updated != null) {
       await _loadServices();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Servicio actualizado'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: _primary),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(_l10n.serviceUpdatedMessage),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: _primary),
+        );
     }
   }
 
@@ -1352,16 +1353,16 @@ class _ClientHomeState extends State<ClientHome>
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Eliminar servicio'),
-        content: const Text('¿Seguro que deseas eliminar esta publicación?'),
+        title: Text(_l10n.deleteServiceTitle),
+        content: Text(_l10n.deleteServiceConfirmation),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar')),
+              child: Text(_l10n.cancelButton)),
           TextButton(
               onPressed: () => Navigator.pop(context, true),
-              child:
-                  const Text('Eliminar', style: TextStyle(color: Colors.red))),
+              child: Text(_l10n.deleteButton,
+                  style: const TextStyle(color: Colors.red))),
         ],
       ),
     );
@@ -1371,8 +1372,8 @@ class _ClientHomeState extends State<ClientHome>
       final bool success = result['exitoso'] == true;
       final String message = (result['mensaje'] ??
               (success
-                  ? 'Servicio eliminado'
-                  : 'No se puede eliminar un servicio aceptado.'))
+                  ? _l10n.serviceDeletedMessage
+                  : _l10n.serviceDeleteBlockedMessage))
           .toString();
       if (success) {
         await _loadServices();
@@ -1424,8 +1425,8 @@ class _ClientHomeState extends State<ClientHome>
     if (created != null) {
       await _loadServices();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Servicio publicado con éxito'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(_l10n.servicePublishedMessage),
           behavior: SnackBarBehavior.floating,
           backgroundColor: _primary));
     }
@@ -1438,6 +1439,7 @@ class _ClientHomeState extends State<ClientHome>
   }
 
   Future<void> _showProfileMenu() async {
+    final l10n = AppLocalizations.of(context)!;
     final email = _currentEmail();
     final name = _currentName();
     final result = await showDialog<String>(
@@ -1445,9 +1447,11 @@ class _ClientHomeState extends State<ClientHome>
       barrierDismissible: true,
       builder: (_) => ProfilePopover(
           name: name,
-          email: email.isNotEmpty ? email : 'Mi cuenta',
+          email: email.isNotEmpty ? email : l10n.myAccount,
           initialLetter: name.isNotEmpty ? name[0].toUpperCase() : '?',
-          accentColor: _primary),
+          accentColor: _primary,
+          manageLabel: l10n.manageAccountLabel,
+          logoutLabel: l10n.logoutLabel),
     );
     if (result == 'manage') {
       await _openAccountManager();
@@ -1465,11 +1469,11 @@ class _ClientHomeState extends State<ClientHome>
         backgroundColor: Colors.white,
         leading: IconButton(
           icon: const Icon(Icons.add_circle_outline, color: _primary),
-          tooltip: 'Publicar servicio',
+          tooltip: _l10n.publishServiceTooltip,
           onPressed: _openPublishForm,
         ),
-        title: const Text('Workify',
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
+        title: Text(_l10n.appTitle,
+            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w800)),
         actions: [
           IconButton(
             icon: Stack(
@@ -1493,12 +1497,12 @@ class _ClientHomeState extends State<ClientHome>
                   ),
               ],
             ),
-            tooltip: 'Notificaciones',
+            tooltip: _l10n.notificationsTooltip,
             onPressed: _openNotifications,
           ),
           IconButton(
             icon: const Icon(Icons.refresh_outlined, color: Colors.black87),
-            tooltip: 'Actualizar',
+            tooltip: _l10n.refreshTooltip,
             onPressed: _reload,
           ),
           Padding(
@@ -1661,9 +1665,9 @@ class _ClientHomeState extends State<ClientHome>
                     );
                   }),
                   const SizedBox(height: 8),
-                  const Text('Ver mapa',
+                  Text(_l10n.viewMapLabel,
                       style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                          const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 8),
                   const CurrentLocationMap(height: 260),
                 ],
@@ -1687,15 +1691,15 @@ class _ClientHomeState extends State<ClientHome>
           Expanded(
             child: Text(
               _expiredServices.length == 1
-                  ? '1 solicitud expiró y se ocultó del listado.'
-                  : '${_expiredServices.length} solicitudes expiraron y se ocultaron del listado.',
+                  ? _l10n.expiredServiceSingle
+                  : _l10n.expiredServiceMultiple(_expiredServices.length),
               style: const TextStyle(
                   color: Colors.orange, fontWeight: FontWeight.w600),
             ),
           ),
           TextButton(
             onPressed: _showExpiredServicesSheet,
-            child: const Text('Ver'),
+            child: Text(_l10n.viewButton),
           ),
         ],
       ),
@@ -1715,20 +1719,21 @@ class _ClientHomeState extends State<ClientHome>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Pago pendiente', style: TextStyle(fontWeight: FontWeight.w700)),
+          Text(_l10n.paymentPendingTitle,
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
-          const Text('Esperando que el cliente inicie el pago para este servicio.',
-              style: TextStyle(fontSize: 13)),
+          Text(_l10n.awaitingClientPayment,
+              style: const TextStyle(fontSize: 13)),
           if (serviceTitle != null && serviceTitle.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 6),
-              child: Text('Servicio: $serviceTitle', style: const TextStyle(fontSize: 13)),
+              child: Text(_l10n.serviceLabel(serviceTitle), style: const TextStyle(fontSize: 13)),
             ),
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: FilledButton.icon(
-              icon: const Icon(Icons.payment),
-              label: const Text('Proceder al pago'),
+              child: FilledButton.icon(
+                icon: const Icon(Icons.payment),
+                label: Text(_l10n.proceedToPayment),
               onPressed: () async {
                 await _startPaymentFlow(serviceId, serviceTitle: serviceTitle);
               },
@@ -1736,9 +1741,9 @@ class _ClientHomeState extends State<ClientHome>
           ),
           Padding(
             padding: const EdgeInsets.only(top: 8),
-            child: TextButton.icon(
-              icon: const Icon(Icons.refresh),
-              label: const Text('Actualizar estado'),
+              child: TextButton.icon(
+                icon: const Icon(Icons.refresh),
+                label: Text(_l10n.updateStatus),
               onPressed: () async {
                 await _loadServices();
               },
@@ -1806,10 +1811,10 @@ class _ClientHomeState extends State<ClientHome>
                 initialInfo: info,
               ),
             ),
-              TextButton.icon(
-                icon: const Icon(Icons.sync),
-                label: const Text('Actualizar estado'),
-                onPressed: () async {
+                    TextButton.icon(
+                      icon: const Icon(Icons.sync),
+                      label: Text(_l10n.updateStatus),
+                      onPressed: () async {
                   if (offerId == null || normalized == null) return;
                   try {
                     await _refreshPaymentStatus(
@@ -1866,8 +1871,8 @@ class _ClientHomeState extends State<ClientHome>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Pago pendiente',
-              style: TextStyle(fontWeight: FontWeight.w700)),
+          Text(_l10n.paymentPendingTitle,
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
           Text('Estado actual: $label',
               style: TextStyle(
@@ -1880,9 +1885,7 @@ class _ClientHomeState extends State<ClientHome>
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Text(
-              isFailed
-                  ? 'Tu último intento fue rechazado. Puedes reintentar para que el trabajador empiece.'
-                  : 'Completa el pago para confirmar la asignación del trabajador.',
+              isFailed ? _l10n.paymentRetryInfo : _l10n.paymentContinueInfo,
               style: const TextStyle(fontSize: 13),
             ),
           ),
@@ -1904,9 +1907,9 @@ class _ClientHomeState extends State<ClientHome>
                       initialInfo: normalized,
                     ),
                   ),
-                  TextButton.icon(
-                    icon: const Icon(Icons.sync),
-                    label: const Text('Actualizar estado'),
+              TextButton.icon(
+                icon: const Icon(Icons.sync),
+                label: Text(_l10n.updateStatus),
                     onPressed: () async {
                       if (offerId == null || offerId <= 0 || normalized == null) return;
                       try {
@@ -1934,7 +1937,7 @@ class _ClientHomeState extends State<ClientHome>
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: Text(
-                'Estamos sincronizando la información del pago. Si ya pagaste, usa el botón de actualizar en notificaciones.',
+                _l10n.paymentSyncInfo,
                 style: const TextStyle(fontSize: 13),
               ),
             ),
@@ -1968,13 +1971,13 @@ class _ClientHomeState extends State<ClientHome>
                   ),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Solicitudes vencidas',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                Text(
+                  _l10n.expiredServicesTitle,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),
                 if (_expiredServices.isEmpty)
-                  const Center(child: Text('No hay solicitudes vencidas.')),
+                  Center(child: Text(_l10n.noExpiredServices)),
                 if (_expiredServices.isNotEmpty)
                   Expanded(
                     child: ListView.separated(
@@ -1982,15 +1985,19 @@ class _ClientHomeState extends State<ClientHome>
                       separatorBuilder: (_, __) => const Divider(height: 16),
                       itemBuilder: (context, index) {
                         final svc = _expiredServices[index];
-                        final titulo = (svc['titulo'] ?? 'Servicio').toString();
+                        final titulo = (svc['titulo'] ?? _l10n.serviceDefaultTitle)
+                            .toString();
                         final fecha = _parseServiceDate(
                             svc['fechaEstimada'] ?? svc['fecha']);
                         final fechaTxt = fecha != null
                             ? '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}'
-                            : 'Fecha no disponible';
+                            : '';
                         final ubicacion = (svc['ubicacion'] ?? '').toString();
                         final categoria = categoryDisplayLabel(
                             (svc['categoria'] ?? '').toString());
+                        final dateLabel = fechaTxt.isNotEmpty
+                            ? _l10n.expiredServiceDateLabel(fechaTxt)
+                            : _l10n.dateUnavailable;
                         return ListTile(
                           leading: const Icon(Icons.warning_amber_outlined,
                               color: Colors.orange),
@@ -1999,10 +2006,10 @@ class _ClientHomeState extends State<ClientHome>
                                   const TextStyle(fontWeight: FontWeight.w700)),
                           subtitle: Text(
                             [
-                              'Expiró el $fechaTxt',
+                              dateLabel,
                               if (ubicacion.isNotEmpty) ubicacion,
                               if (categoria.isNotEmpty) categoria,
-                            ].join(' · '),
+                            ].join(' • '),
                           ),
                         );
                       },
@@ -2048,7 +2055,7 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
       initialDate: _fecha ?? now.add(const Duration(days: 1)),
       firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(now.year + 2),
-      helpText: 'Selecciona fecha estimada',
+      helpText: AppLocalizations.of(context)!.datePickerHelp,
       locale: const Locale('es', 'CO'),
     );
     if (picked != null) {
@@ -2057,13 +2064,14 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
   }
 
   Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context)!;
     if (_sending) return;
     if (!_formKey.currentState!.validate()) return;
     final today = DateTime.now();
     final todayAt0 = DateTime(today.year, today.month, today.day);
     if (_fecha == null || _fecha!.isBefore(todayAt0)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('La fecha no puede ser anterior a hoy'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.dateInPastError),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.red));
       return;
@@ -2071,8 +2079,8 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
 
     final categoriaValue = normalizeCategoryValue(_categoria);
     if (categoriaValue.isEmpty || !widget.categorias.contains(categoriaValue)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Categoría inválida'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.invalidCategoryError),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.red));
       return;
@@ -2091,7 +2099,7 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
       Navigator.pop(context, resp);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error al publicar: $e'),
+          content: Text(l10n.errorMessage(e)),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.red));
     } finally {
@@ -2101,6 +2109,8 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -2120,15 +2130,16 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
                       color: Colors.black26,
                       borderRadius: BorderRadius.circular(8))),
               const SizedBox(height: 12),
-              const Text('Publicación de servicios',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              Text(l10n.serviceFormPublishTitle,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _tituloCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Título *', prefixIcon: Icon(Icons.title)),
+                decoration: InputDecoration(
+                    labelText: l10n.serviceTitleLabel,
+                    prefixIcon: const Icon(Icons.title)),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'El título no debe estar vacío'
+                    ? l10n.titleRequiredError
                     : null,
               ),
               const SizedBox(height: 12),
@@ -2136,18 +2147,18 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
                 controller: _descripcionCtrl,
                 minLines: 3,
                 maxLines: 6,
-                decoration: const InputDecoration(
-                    labelText: 'Descripción *',
-                    prefixIcon: Icon(Icons.description_outlined)),
+                decoration: InputDecoration(
+                    labelText: l10n.serviceDescriptionLabel,
+                    prefixIcon: const Icon(Icons.description_outlined)),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'La descripción no debe estar vacía'
+                    ? l10n.descriptionRequiredError
                     : null,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                    labelText: 'Categoría *',
-                    prefixIcon: Icon(Icons.category_outlined)),
+                decoration: InputDecoration(
+                    labelText: l10n.serviceCategoryLabel,
+                    prefixIcon: const Icon(Icons.category_outlined)),
                 value: _categoria,
                 items: widget.categorias
                     .map((c) => DropdownMenuItem(
@@ -2155,32 +2166,32 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
                     .toList(),
                 onChanged: (v) => setState(() => _categoria = v),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Selecciona una categoría'
+                    ? l10n.categoryRequiredError
                     : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _ubicacionCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Ubicación *',
-                    prefixIcon: Icon(Icons.location_on_outlined)),
+                decoration: InputDecoration(
+                    labelText: l10n.serviceLocationLabel,
+                    prefixIcon: const Icon(Icons.location_on_outlined)),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'La ubicación es obligatoria'
+                    ? l10n.locationRequiredError
                     : null,
               ),
               const SizedBox(height: 12),
               InkWell(
                 onTap: _pickDate,
                 child: InputDecorator(
-                  decoration: const InputDecoration(
-                      labelText: 'Fecha estimada *',
-                      prefixIcon: Icon(Icons.event_outlined),
-                      border: OutlineInputBorder()),
+                  decoration: InputDecoration(
+                      labelText: l10n.serviceEstimatedDateLabel,
+                      prefixIcon: const Icon(Icons.event_outlined),
+                      border: const OutlineInputBorder()),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(_fecha == null
-                          ? 'Selecciona una fecha'
+                          ? l10n.selectDatePrompt
                           : _fmtDate(_fecha!)),
                       const Icon(Icons.calendar_today, size: 18),
                     ],
@@ -2194,7 +2205,7 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
                       child: OutlinedButton(
                           onPressed:
                               _sending ? null : () => Navigator.pop(context),
-                          child: const Text('Cancelar'))),
+                          child: Text(l10n.cancelButton))),
                   const SizedBox(width: 12),
                   Expanded(
                       child: ElevatedButton(
@@ -2208,14 +2219,14 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
                                   width: 18,
                                   child: CircularProgressIndicator(
                                       strokeWidth: 2, color: Colors.white))
-                              : const Text('Guardar'))),
+                              : Text(l10n.saveButton))),
                 ],
               ),
               const SizedBox(height: 4),
-              const Align(
+              Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('* Campos obligatorios',
-                      style: TextStyle(fontSize: 12, color: Colors.black54))),
+                  child: Text(l10n.requiredFieldsNote,
+                      style: const TextStyle(fontSize: 12, color: Colors.black54))),
             ],
           ),
         ),
@@ -2282,7 +2293,7 @@ class _EditServiceFormState extends State<_EditServiceForm> {
       initialDate: _fecha ?? now.add(const Duration(days: 1)),
       firstDate: DateTime(now.year, now.month, now.day),
       lastDate: DateTime(now.year + 2),
-      helpText: 'Selecciona fecha estimada',
+      helpText: AppLocalizations.of(context)!.datePickerHelp,
       locale: const Locale('es', 'CO'),
     );
     if (picked != null) {
@@ -2291,13 +2302,14 @@ class _EditServiceFormState extends State<_EditServiceForm> {
   }
 
   Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context)!;
     if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
     final today = DateTime.now();
     final todayAt0 = DateTime(today.year, today.month, today.day);
     if (_fecha == null || _fecha!.isBefore(todayAt0)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('La fecha no puede ser anterior a hoy'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.dateInPastError),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.red));
       return;
@@ -2305,8 +2317,8 @@ class _EditServiceFormState extends State<_EditServiceForm> {
 
     final categoriaValue = normalizeCategoryValue(_categoria);
     if (categoriaValue.isEmpty || !widget.categorias.contains(categoriaValue)) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Categoría inválida'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(l10n.invalidCategoryError),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.red));
       return;
@@ -2326,7 +2338,7 @@ class _EditServiceFormState extends State<_EditServiceForm> {
       Navigator.pop(context, resp);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error al guardar: $e'),
+          content: Text(l10n.errorMessage(e)),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.red));
     } finally {
@@ -2336,6 +2348,7 @@ class _EditServiceFormState extends State<_EditServiceForm> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: EdgeInsets.only(
           left: 16,
@@ -2354,15 +2367,16 @@ class _EditServiceFormState extends State<_EditServiceForm> {
                       color: Colors.black26,
                       borderRadius: BorderRadius.circular(8))),
               const SizedBox(height: 12),
-              const Text('Editar servicio',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              Text(l10n.serviceFormEditTitle,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _tituloCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Título *', prefixIcon: Icon(Icons.title)),
+                decoration: InputDecoration(
+                    labelText: l10n.serviceTitleLabel,
+                    prefixIcon: const Icon(Icons.title)),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'El título no debe estar vacío'
+                    ? l10n.titleRequiredError
                     : null,
               ),
               const SizedBox(height: 12),
@@ -2370,18 +2384,18 @@ class _EditServiceFormState extends State<_EditServiceForm> {
                 controller: _descripcionCtrl,
                 minLines: 3,
                 maxLines: 6,
-                decoration: const InputDecoration(
-                    labelText: 'Descripción *',
-                    prefixIcon: Icon(Icons.description_outlined)),
+                decoration: InputDecoration(
+                    labelText: l10n.serviceDescriptionLabel,
+                    prefixIcon: const Icon(Icons.description_outlined)),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'La descripción no debe estar vacía'
+                    ? l10n.descriptionRequiredError
                     : null,
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                decoration: const InputDecoration(
-                    labelText: 'Categoría *',
-                    prefixIcon: Icon(Icons.category_outlined)),
+                decoration: InputDecoration(
+                    labelText: l10n.serviceCategoryLabel,
+                    prefixIcon: const Icon(Icons.category_outlined)),
                 value: _categoria,
                 items: widget.categorias
                     .map((c) => DropdownMenuItem(
@@ -2389,32 +2403,32 @@ class _EditServiceFormState extends State<_EditServiceForm> {
                     .toList(),
                 onChanged: (v) => setState(() => _categoria = v),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'Selecciona una categoría'
+                    ? l10n.categoryRequiredError
                     : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _ubicacionCtrl,
-                decoration: const InputDecoration(
-                    labelText: 'Ubicación *',
-                    prefixIcon: Icon(Icons.location_on_outlined)),
+                decoration: InputDecoration(
+                    labelText: l10n.serviceLocationLabel,
+                    prefixIcon: const Icon(Icons.location_on_outlined)),
                 validator: (v) => (v == null || v.trim().isEmpty)
-                    ? 'La ubicación es obligatoria'
+                    ? l10n.locationRequiredError
                     : null,
               ),
               const SizedBox(height: 12),
               InkWell(
                 onTap: _pickDate,
                 child: InputDecorator(
-                  decoration: const InputDecoration(
-                      labelText: 'Fecha estimada *',
-                      prefixIcon: Icon(Icons.event_outlined),
-                      border: OutlineInputBorder()),
+                  decoration: InputDecoration(
+                      labelText: l10n.serviceEstimatedDateLabel,
+                      prefixIcon: const Icon(Icons.event_outlined),
+                      border: const OutlineInputBorder()),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(_fecha == null
-                          ? 'Selecciona una fecha'
+                          ? l10n.selectDatePrompt
                           : _fmtDate(_fecha!)),
                       const Icon(Icons.calendar_today, size: 18),
                     ],
@@ -2425,10 +2439,10 @@ class _EditServiceFormState extends State<_EditServiceForm> {
               Row(
                 children: [
                   Expanded(
-                      child: OutlinedButton(
-                          onPressed:
-                              _saving ? null : () => Navigator.pop(context),
-                          child: const Text('Cancelar'))),
+                  child: OutlinedButton(
+                      onPressed:
+                          _saving ? null : () => Navigator.pop(context),
+                      child: Text(l10n.cancelButton))),
                   const SizedBox(width: 12),
                   Expanded(
                       child: ElevatedButton(
@@ -2436,13 +2450,13 @@ class _EditServiceFormState extends State<_EditServiceForm> {
                               backgroundColor: _primary,
                               foregroundColor: Colors.white),
                           onPressed: _saving ? null : _submit,
-                          child: _saving
-                              ? const SizedBox(
-                                  height: 18,
-                                  width: 18,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: Colors.white))
-                              : const Text('Guardar'))),
+                      child: _saving
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : Text(l10n.saveButton))),
                 ],
               ),
             ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
 
 class ProfilePopover extends StatelessWidget {
   const ProfilePopover({
@@ -20,10 +21,11 @@ class ProfilePopover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final displayName = name.trim().isEmpty ? email.trim() : name.trim();
     final greetingName = displayName.isEmpty
-        ? '¡Hola!'
-        : '¡Hola, ${displayName.trim()}!';
+        ? l10n.profileGreeting
+        : l10n.profileGreetingWithName(displayName.trim());
     final letter =
         (initialLetter.trim().isNotEmpty
                 ? initialLetter.trim().substring(0, 1)

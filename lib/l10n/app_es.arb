@@ -1,0 +1,235 @@
+{
+  "@@locale": "es",
+  "appTitle": "Workify",
+  "welcome": "Bienvenido a Workify",
+  "subtitle": "Elige tu rol para continuar",
+  "roleHint": "Selecciona Trabajador o Cliente para avanzar",
+  "workerButton": "Soy Trabajador",
+  "clientButton": "Soy Cliente",
+  "selectCountry": "Selecciona un país",
+  "currencyLabel": "Moneda actual",
+  "dateLabel": "Fecha local",
+  "countryLabel": "{emoji} {name}",
+  "loginTitleWorker": "Inicia sesión como Trabajador",
+  "loginTitleClient": "Inicia sesión como Cliente",
+  "loginDescription": "Conecta con oficios verificados, paga seguro y lleva seguimiento en tiempo real.",
+  "loginFeaturePayments": "Pagos seguros",
+  "loginFeatureIdentity": "Identidad verificada",
+  "loginFeatureSupport": "Soporte y seguridad",
+  "accessTitle": "Acceso seguro",
+  "emailLabel": "Correo electrónico",
+  "emailEmptyError": "Ingresa tu correo",
+  "emailInvalidError": "Correo inválido",
+  "passwordLabel": "Contraseña",
+  "passwordEmptyError": "Ingresa tu contraseña",
+  "forgotPassword": "¿Olvidaste tu contraseña?",
+  "loginButton": "Iniciar sesión",
+  "registerPrompt": "¿No tienes cuenta? Regístrate aquí",
+  "backHome": "⬅️ Volver al inicio",
+  "unverifiedAccountMessage": "Tu cuenta no está verificada. Revisa tu correo y activa tu cuenta para iniciar sesión.",
+  "understood": "Entendido",
+  "errorMessage": "Error: {message}",
+  "welcomeUser": "Bienvenido {name}",
+  "registerTitleClient": "Crea tu cuenta",
+  "registerSubtitleClient": "Conecta con trabajadores confiables y paga seguro.",
+  "verifiedIdentity": "Identidad verificada",
+  "registerTagProtected": "Pagos protegidos",
+  "registerTagSupport": "Soporte 24/7",
+  "registerTagVerified": "Servicios verificados",
+  "personalDataTitle": "Datos personales",
+  "nameLabel": "Nombre completo",
+  "nameMinError": "Ingresa tu nombre (mínimo 3 caracteres)",
+  "phoneLabel": "Celular",
+  "phoneEmptyError": "Ingresa tu celular",
+  "phoneInvalidError": "Número inválido",
+  "passwordMinError": "Mínimo 6 caracteres",
+  "confirmPasswordLabel": "Confirmar contraseña",
+  "confirmPasswordError": "Confirma tu contraseña",
+  "termsAgreement": "Acepto los términos y condiciones y la política de privacidad.",
+  "termsError": "Debes aceptar los términos y condiciones.",
+  "passwordsMismatch": "Las contraseñas no coinciden.",
+  "createAccountButton": "Crear cuenta",
+  "registrationReceived": "Registro recibido. Revisa tu correo para activar la cuenta.",
+  "unknownError": "Error desconocido. Intenta de nuevo.",
+  "connectionError": "Error de conexión: {message}",
+  "registerTitleWorker": "Registro de trabajador",
+  "registerSubtitleWorker": "Lista tus servicios, define tu disponibilidad y conecta con clientes.",
+  "serviceCategoryLabel": "Categoría *",
+  "categoriesLoading": "Cargando categorías...",
+  "categoriesUnavailable": "No hay categorías disponibles",
+  "selectCategoryPrompt": "Selecciona una categoría",
+  "categoryInvalid": "La categoría seleccionada no es válida",
+  "registerButtonWorker": "Registrarse",
+  "cancelButton": "Cancelar",
+  "haveAccountCarryOn": "¿Ya tienes cuenta? ",
+  "loginHere": "Inicia sesión",
+  "categoriesFallback": "Categorías cargadas localmente. Detalle: {message}",
+  "categoriesLocalFallback": "No se pudieron cargar las categorías del servidor. Se usaron valores locales.",
+  "categoriesError": "No se pudieron cargar las categorías: {message}",
+  "publishServiceTooltip": "Publicar servicio",
+  "notificationsTooltip": "Notificaciones",
+  "refreshTooltip": "Actualizar",
+  "optionsTooltip": "Opciones",
+  "viewMapLabel": "Ver mapa",
+  "viewButton": "Ver",
+  "expiredServicesTitle": "Solicitudes vencidas",
+  "noExpiredServices": "No hay solicitudes vencidas.",
+  "expiredServiceSingle": "1 solicitud expiró y se ocultó del listado.",
+  "expiredServiceMultiple": "{count} solicitudes expiraron y se ocultaron del listado.",
+  "@expiredServiceMultiple": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "expiredServiceDateLabel": "Expiró el {date}",
+  "@expiredServiceDateLabel": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "dateUnavailable": "Fecha no disponible",
+  "serviceLabel": "Servicio: {title}",
+  "@serviceLabel": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "serviceDateLabel": "Fecha: {date}",
+  "@serviceDateLabel": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "serviceStateLabel": "Estado: {status}",
+  "@serviceStateLabel": {
+    "placeholders": {
+      "status": {}
+    }
+  },
+  "serviceTurnLabel": "Turno: {turn}",
+  "@serviceTurnLabel": {
+    "placeholders": {
+      "turn": {}
+    }
+  },
+  "lastOfferLabel": "Última oferta: {actor}",
+  "@lastOfferLabel": {
+    "placeholders": {
+      "actor": {}
+    }
+  },
+  "currentAmountLabel": "Monto vigente: {amount}",
+  "@currentAmountLabel": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
+  "workerProposalLabel": "Propuesta del trabajador: {amount}",
+  "@workerProposalLabel": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
+  "clientOfferLabel": "Tu oferta: {amount}",
+  "@clientOfferLabel": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
+  "notificationsTitle": "Notificaciones",
+  "pendingPaymentsSection": "Pagos pendientes",
+  "offersInNegotiationSection": "Ofertas en negociación",
+  "noNewOffers": "No tienes ofertas nuevas.",
+  "offerAcceptedMessage": "Oferta aceptada. Completa el pago para asignar el servicio.",
+  "serviceAssignedMessage": "Servicio asignado",
+  "offerRejectedMessage": "Oferta rechazada",
+  "counterofferTitle": "Enviar contraoferta",
+  "counterofferPriceLabel": "Nuevo precio",
+  "counterofferNoteLabel": "Mensaje (opcional)",
+  "enterValidAmount": "Ingresa un monto válido",
+  "sendButton": "Enviar",
+  "counterofferSent": "Contraoferta enviada",
+  "acceptTooltip": "Aceptar",
+  "rejectTooltip": "Rechazar",
+  "counterofferTooltip": "Contraoferta",
+  "workerOfferLabel": "{worker} ofertó",
+  "@workerOfferLabel": {
+    "placeholders": {
+      "worker": {}
+    }
+  },
+  "serviceUpdatedMessage": "Servicio actualizado",
+  "paymentStatusLabel": "Estado de pago: {status}",
+  "@paymentStatusLabel": {
+    "placeholders": {
+      "status": {}
+    }
+  },
+  "paymentPendingTitle": "Pago pendiente",
+  "awaitingClientPayment": "Esperando que el cliente inicie el pago para este servicio.",
+  "proceedToPayment": "Proceder al pago",
+  "updateStatus": "Actualizar estado",
+  "paymentRetryInfo": "Tu último intento fue rechazado. Puedes reintentar para que el trabajador empiece.",
+  "paymentContinueInfo": "Completa el pago para confirmar la asignación del trabajador.",
+  "paymentSyncInfo": "Estamos sincronizando la información del pago. Si ya pagaste, usa el botón de actualizar en notificaciones.",
+  "servicePublishedMessage": "Servicio publicado con éxito",
+  "deleteServiceTitle": "Eliminar servicio",
+  "deleteServiceConfirmation": "¿Seguro que deseas eliminar esta publicación?",
+  "deleteButton": "Eliminar",
+  "serviceDefaultTitle": "Servicio",
+  "myAccount": "Mi cuenta",
+  "serviceFormPublishTitle": "Publicación de servicios",
+  "serviceFormEditTitle": "Editar servicio",
+  "serviceTitleLabel": "Título *",
+  "serviceDescriptionLabel": "Descripción *",
+  "serviceLocationLabel": "Ubicación *",
+  "serviceEstimatedDateLabel": "Fecha estimada *",
+  "selectDatePrompt": "Selecciona una fecha",
+  "datePickerHelp": "Selecciona fecha estimada",
+  "titleRequiredError": "El título no debe estar vacío",
+  "descriptionRequiredError": "La descripción no debe estar vacía",
+  "categoryRequiredError": "Selecciona una categoría",
+  "locationRequiredError": "La ubicación es obligatoria",
+  "dateInPastError": "La fecha no puede ser anterior a hoy",
+  "invalidCategoryError": "Categoría inválida",
+  "requiredFieldsNote": "* Campos obligatorios",
+  "saveButton": "Guardar",
+  "clientLabel": "Cliente",
+  "workerLabel": "Trabajador",
+  "negotiationInNegotiation": "En negociación",
+  "negotiationInProgress": "En curso",
+  "negotiationAccepted": "Aceptada",
+  "negotiationRejected": "Rechazada",
+  "negotiationClosed": "Cerrada",
+  "negotiationPending": "Pendiente",
+  "serviceStatePending": "Pendiente",
+  "serviceStatePaymentPending": "Pago pendiente",
+  "serviceStateInProgress": "En curso",
+  "serviceStateFinished": "Finalizado",
+  "serviceStateExpired": "Expirado",
+  "paymentStatusPending": "Pago pendiente",
+  "paymentStatusRequiresPaymentMethod": "Requiere otro método",
+  "paymentStatusRequiresAction": "Se requiere acción",
+  "paymentStatusSucceeded": "Pago confirmado",
+  "paymentStatusFailed": "Pago rechazado",
+  "paymentStatusNotRequired": "No requiere pago",
+  "paymentStatusDefault": "Pago",
+  "manageAccountLabel": "Administrar cuenta",
+  "logoutLabel": "Cerrar sesión",
+  "closeTooltip": "Cerrar",
+  "profileGreeting": "¡Hola!",
+  "profileGreetingWithName": "¡Hola, {name}!",
+  "@profileGreetingWithName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "serviceExpirationWarning": "Atención: el servicio \"{title}\" vence hoy y será eliminado automáticamente a las 00:00 si sigue pendiente.",
+  "@serviceExpirationWarning": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "serviceDeletedMessage": "Servicio eliminado",
+  "serviceDeleteBlockedMessage": "No se puede eliminar un servicio aceptado."
+}

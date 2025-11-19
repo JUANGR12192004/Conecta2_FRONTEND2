@@ -1,0 +1,235 @@
+{
+  "@@locale": "de",
+  "appTitle": "Workify",
+  "welcome": "Willkommen bei Workify",
+  "subtitle": "Wähle deine Rolle, um fortzufahren",
+  "roleHint": "Wähle Arbeiter oder Kunde, um weiterzumachen",
+  "workerButton": "Ich bin Arbeiter",
+  "clientButton": "Ich bin Kunde",
+  "selectCountry": "Wähle ein Land",
+  "currencyLabel": "Aktuelle Währung",
+  "dateLabel": "Lokales Datum",
+  "countryLabel": "{emoji} {name}",
+  "loginTitleWorker": "Als Arbeiter anmelden",
+  "loginTitleClient": "Als Kunde anmelden",
+  "loginDescription": "Verbinde dich mit geprüften Handwerkern, zahle sicher und verfolge deinen Service in Echtzeit.",
+  "loginFeaturePayments": "Sichere Zahlungen",
+  "loginFeatureIdentity": "Verifizierte Identität",
+  "loginFeatureSupport": "Support und Sicherheit",
+  "accessTitle": "Sicherer Zugang",
+  "emailLabel": "E-Mail",
+  "emailEmptyError": "Gib deine E-Mail ein",
+  "emailInvalidError": "Ungültige E-Mail",
+  "passwordLabel": "Passwort",
+  "passwordEmptyError": "Gib dein Passwort ein",
+  "forgotPassword": "Passwort vergessen?",
+  "loginButton": "Anmelden",
+  "registerPrompt": "Noch keinen Account? Hier registrieren",
+  "backHome": "⬅️ Zurück zur Startseite",
+  "unverifiedAccountMessage": "Dein Konto ist nicht verifiziert. Prüfe deine E-Mail und aktiviere es.",
+  "understood": "Verstanden",
+  "errorMessage": "Fehler: {message}",
+  "welcomeUser": "Willkommen {name}",
+  "registerTitleClient": "Erstelle dein Konto",
+  "registerSubtitleClient": "Verbinde dich mit verifizierten Handwerkern und zahle sicher.",
+  "verifiedIdentity": "Verifizierte Identität",
+  "registerTagProtected": "Sichere Zahlungen",
+  "registerTagSupport": "24/7 Support",
+  "registerTagVerified": "Verifizierte Dienste",
+  "personalDataTitle": "Persönliche Daten",
+  "nameLabel": "Vollständiger Name",
+  "nameMinError": "Gib deinen Namen ein (mindestens 3 Zeichen)",
+  "phoneLabel": "Telefon",
+  "phoneEmptyError": "Gib deine Telefonnummer ein",
+  "phoneInvalidError": "Ungültige Nummer",
+  "passwordMinError": "Mindestens 6 Zeichen",
+  "confirmPasswordLabel": "Passwort bestätigen",
+  "confirmPasswordError": "Bestätige dein Passwort",
+  "termsAgreement": "Ich akzeptiere die Allgemeinen Geschäftsbedingungen und die Datenschutzerklärung.",
+  "termsError": "Du musst die AGB akzeptieren.",
+  "passwordsMismatch": "Die Passwörter stimmen nicht überein.",
+  "createAccountButton": "Konto erstellen",
+  "registrationReceived": "Anmeldung eingegangen. Überprüfe deine E-Mails, um das Konto zu aktivieren.",
+  "unknownError": "Unbekannter Fehler. Bitte erneut versuchen.",
+  "connectionError": "Verbindungsfehler: {message}",
+  "registerTitleWorker": "Arbeiterregistrierung",
+  "registerSubtitleWorker": "Stellen Sie Ihre Dienste ein, definieren Sie Verfügbarkeit und verbinden Sie sich mit Kunden.",
+  "serviceCategoryLabel": "Kategorie *",
+  "categoriesLoading": "Kategorien werden geladen...",
+  "categoriesUnavailable": "Keine Kategorien verfügbar",
+  "selectCategoryPrompt": "Wähle eine Kategorie",
+  "categoryInvalid": "Die gewählte Kategorie ist ungültig",
+  "registerButtonWorker": "Registrieren",
+  "cancelButton": "Abbrechen",
+  "haveAccountCarryOn": "Bereits ein Konto? ",
+  "loginHere": "Einloggen",
+  "categoriesFallback": "Kategorien lokal geladen. Details: {message}",
+  "categoriesLocalFallback": "Kategorien konnten nicht vom Server geladen werden. Lokale Werte verwendet.",
+  "categoriesError": "Kategorien konnten nicht geladen werden: {message}",
+  "publishServiceTooltip": "Dienst veröffentlichen",
+  "notificationsTooltip": "Benachrichtigungen",
+  "refreshTooltip": "Aktualisieren",
+  "optionsTooltip": "Optionen",
+  "viewMapLabel": "Karte anzeigen",
+  "viewButton": "Ansehen",
+  "expiredServicesTitle": "Abgelaufene Anfragen",
+  "noExpiredServices": "Keine abgelaufenen Anfragen.",
+  "expiredServiceSingle": "1 Anfrage ist abgelaufen und wurde aus der Liste entfernt.",
+  "expiredServiceMultiple": "{count} Anfragen sind abgelaufen und wurden aus der Liste entfernt.",
+  "@expiredServiceMultiple": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "expiredServiceDateLabel": "Abgelaufen am {date}",
+  "@expiredServiceDateLabel": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "dateUnavailable": "Datum nicht verfügbar",
+  "serviceLabel": "Dienst: {title}",
+  "@serviceLabel": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "serviceDateLabel": "Datum: {date}",
+  "@serviceDateLabel": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "serviceStateLabel": "Status: {status}",
+  "@serviceStateLabel": {
+    "placeholders": {
+      "status": {}
+    }
+  },
+  "serviceTurnLabel": "Zug: {turn}",
+  "@serviceTurnLabel": {
+    "placeholders": {
+      "turn": {}
+    }
+  },
+  "lastOfferLabel": "Letztes Angebot: {actor}",
+  "@lastOfferLabel": {
+    "placeholders": {
+      "actor": {}
+    }
+  },
+  "currentAmountLabel": "Aktueller Betrag: {amount}",
+  "@currentAmountLabel": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
+  "workerProposalLabel": "Angebot des Arbeiters: {amount}",
+  "@workerProposalLabel": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
+  "clientOfferLabel": "Dein Angebot: {amount}",
+  "@clientOfferLabel": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
+  "notificationsTitle": "Benachrichtigungen",
+  "pendingPaymentsSection": "Ausstehende Zahlungen",
+  "offersInNegotiationSection": "Angebote in Verhandlung",
+  "noNewOffers": "Du hast keine neuen Angebote.",
+  "offerAcceptedMessage": "Angebot angenommen. Schließe die Zahlung ab, um den Dienst zu vergeben.",
+  "serviceAssignedMessage": "Dienst vergeben",
+  "offerRejectedMessage": "Angebot abgelehnt",
+  "counterofferTitle": "Gegenangebot senden",
+  "counterofferPriceLabel": "Neuer Preis",
+  "counterofferNoteLabel": "Nachricht (optional)",
+  "enterValidAmount": "Gib einen gültigen Betrag ein",
+  "sendButton": "Senden",
+  "counterofferSent": "Gegenangebot gesendet",
+  "acceptTooltip": "Akzeptieren",
+  "rejectTooltip": "Ablehnen",
+  "counterofferTooltip": "Gegenangebot",
+  "workerOfferLabel": "{worker} hat ein Angebot abgegeben",
+  "@workerOfferLabel": {
+    "placeholders": {
+      "worker": {}
+    }
+  },
+  "serviceUpdatedMessage": "Dienst aktualisiert",
+  "paymentStatusLabel": "Zahlungsstatus: {status}",
+  "@paymentStatusLabel": {
+    "placeholders": {
+      "status": {}
+    }
+  },
+  "paymentPendingTitle": "Zahlung ausstehend",
+  "awaitingClientPayment": "Warten darauf, dass der Kunde die Zahlung für diesen Dienst startet.",
+  "proceedToPayment": "Zur Zahlung",
+  "updateStatus": "Status aktualisieren",
+  "paymentRetryInfo": "Dein letzter Versuch wurde abgelehnt. Du kannst es erneut versuchen, damit der Arbeiter beginnen kann.",
+  "paymentContinueInfo": "Schließe die Zahlung ab, um die Zuweisung des Arbeiters zu bestätigen.",
+  "paymentSyncInfo": "Wir synchronisieren die Zahlungsdaten. Wenn du bereits bezahlt hast, nutze den Aktualisieren-Button in den Benachrichtigungen.",
+  "servicePublishedMessage": "Dienst erfolgreich veröffentlicht",
+  "deleteServiceTitle": "Dienst löschen",
+  "deleteServiceConfirmation": "Möchtest du dieses Angebot wirklich löschen?",
+  "deleteButton": "Löschen",
+  "serviceDefaultTitle": "Dienst",
+  "myAccount": "Mein Konto",
+  "serviceFormPublishTitle": "Dienstveröffentlichung",
+  "serviceFormEditTitle": "Dienst bearbeiten",
+  "serviceTitleLabel": "Titel *",
+  "serviceDescriptionLabel": "Beschreibung *",
+  "serviceLocationLabel": "Ort *",
+  "serviceEstimatedDateLabel": "Geschätztes Datum *",
+  "selectDatePrompt": "Wähle ein Datum",
+  "datePickerHelp": "Geschätztes Datum auswählen",
+  "titleRequiredError": "Der Titel darf nicht leer sein",
+  "descriptionRequiredError": "Die Beschreibung darf nicht leer sein",
+  "categoryRequiredError": "Wähle eine Kategorie",
+  "locationRequiredError": "Der Ort ist erforderlich",
+  "dateInPastError": "Das Datum darf nicht vor heute liegen",
+  "invalidCategoryError": "Ungültige Kategorie",
+  "requiredFieldsNote": "* Pflichtfelder",
+  "saveButton": "Speichern",
+  "clientLabel": "Kunde",
+  "workerLabel": "Arbeiter",
+  "negotiationInNegotiation": "In Verhandlung",
+  "negotiationInProgress": "In Bearbeitung",
+  "negotiationAccepted": "Akzeptiert",
+  "negotiationRejected": "Abgelehnt",
+  "negotiationClosed": "Abgeschlossen",
+  "negotiationPending": "Ausstehend",
+  "serviceStatePending": "Ausstehend",
+  "serviceStatePaymentPending": "Zahlung ausstehend",
+  "serviceStateInProgress": "In Bearbeitung",
+  "serviceStateFinished": "Abgeschlossen",
+  "serviceStateExpired": "Abgelaufen",
+  "paymentStatusPending": "Zahlung ausstehend",
+  "paymentStatusRequiresPaymentMethod": "Weitere Zahlungsmethode erforderlich",
+  "paymentStatusRequiresAction": "Aktion erforderlich",
+  "paymentStatusSucceeded": "Zahlung bestätigt",
+  "paymentStatusFailed": "Zahlung fehlgeschlagen",
+  "paymentStatusNotRequired": "Nicht erforderlich",
+  "paymentStatusDefault": "Zahlung",
+  "manageAccountLabel": "Konto verwalten",
+  "logoutLabel": "Abmelden",
+  "closeTooltip": "Schließen",
+  "profileGreeting": "Hallo!",
+  "profileGreetingWithName": "Hallo, {name}!",
+  "@profileGreetingWithName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "serviceExpirationWarning": "Achtung: Der Dienst \"{title}\" läuft heute aus und wird automatisch um Mitternacht entfernt, falls er noch ausstehend ist.",
+  "@serviceExpirationWarning": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "serviceDeletedMessage": "Dienst gelöscht",
+  "serviceDeleteBlockedMessage": "Ein akzeptierter Dienst kann nicht gelöscht werden."
+}

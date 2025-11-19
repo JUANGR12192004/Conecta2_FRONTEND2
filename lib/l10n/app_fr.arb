@@ -1,0 +1,235 @@
+{
+  "@@locale": "fr",
+  "appTitle": "Workify",
+  "welcome": "Bienvenue sur Workify",
+  "subtitle": "Choisissez votre rôle pour continuer",
+  "roleHint": "Sélectionnez Travailleur ou Client pour poursuivre",
+  "workerButton": "Je suis Travailleur",
+  "clientButton": "Je suis Client",
+  "selectCountry": "Sélectionnez un pays",
+  "currencyLabel": "Devise actuelle",
+  "dateLabel": "Date locale",
+  "countryLabel": "{emoji} {name}",
+  "loginTitleWorker": "Connexion en tant que Travailleur",
+  "loginTitleClient": "Connexion en tant que Client",
+  "loginDescription": "Connectez-vous à des artisans vérifiés, payez en toute sécurité et suivez votre service en temps réel.",
+  "loginFeaturePayments": "Paiements sécurisés",
+  "loginFeatureIdentity": "Identité vérifiée",
+  "loginFeatureSupport": "Assistance et sécurité",
+  "accessTitle": "Accès sécurisé",
+  "emailLabel": "Courriel",
+  "emailEmptyError": "Entrez votre courriel",
+  "emailInvalidError": "Courriel invalide",
+  "passwordLabel": "Mot de passe",
+  "passwordEmptyError": "Entrez votre mot de passe",
+  "forgotPassword": "Mot de passe oublié ?",
+  "loginButton": "Se connecter",
+  "registerPrompt": "Vous n'avez pas de compte ? Inscrivez-vous ici",
+  "backHome": "⬅️ Retour à l'accueil",
+  "unverifiedAccountMessage": "Votre compte n'est pas vérifié. Vérifiez votre courriel et activez-le pour vous connecter.",
+  "understood": "Compris",
+  "errorMessage": "Erreur : {message}",
+  "welcomeUser": "Bienvenue {name}",
+  "registerTitleClient": "Créez votre compte",
+  "registerSubtitleClient": "Connectez-vous avec des professionnels vérifiés et payez en toute sécurité.",
+  "verifiedIdentity": "Identité vérifiée",
+  "registerTagProtected": "Paiements protégés",
+  "registerTagSupport": "Assistance 24/7",
+  "registerTagVerified": "Services vérifiés",
+  "personalDataTitle": "Informations personnelles",
+  "nameLabel": "Nom complet",
+  "nameMinError": "Entrez votre nom (au moins 3 caractères)",
+  "phoneLabel": "Téléphone",
+  "phoneEmptyError": "Entrez votre téléphone",
+  "phoneInvalidError": "Numéro invalide",
+  "passwordMinError": "Minimum 6 caractères",
+  "confirmPasswordLabel": "Confirmer le mot de passe",
+  "confirmPasswordError": "Confirmez votre mot de passe",
+  "termsAgreement": "J'accepte les termes et conditions et la politique de confidentialité.",
+  "termsError": "Vous devez accepter les termes et conditions.",
+  "passwordsMismatch": "Les mots de passe ne correspondent pas.",
+  "createAccountButton": "Créer un compte",
+  "registrationReceived": "Inscription reçue. Vérifiez votre e-mail pour activer le compte.",
+  "unknownError": "Erreur inconnue. Veuillez réessayer.",
+  "connectionError": "Erreur de connexion : {message}",
+  "registerTitleWorker": "Inscription travailleur",
+  "registerSubtitleWorker": "Publiez vos services, définissez vos disponibilités et connectez-vous aux clients.",
+  "serviceCategoryLabel": "Catégorie *",
+  "categoriesLoading": "Chargement des catégories...",
+  "categoriesUnavailable": "Aucune catégorie disponible",
+  "selectCategoryPrompt": "Sélectionnez une catégorie",
+  "categoryInvalid": "La catégorie sélectionnée est invalide",
+  "registerButtonWorker": "S'inscrire",
+  "cancelButton": "Annuler",
+  "haveAccountCarryOn": "Vous avez déjà un compte ? ",
+  "loginHere": "Connectez-vous",
+  "categoriesFallback": "Catégories chargées localement. Détail : {message}",
+  "categoriesLocalFallback": "Impossible de charger les catégories du serveur. Des valeurs locales ont été utilisées.",
+  "categoriesError": "Impossible de charger les catégories : {message}",
+  "publishServiceTooltip": "Publier un service",
+  "notificationsTooltip": "Notifications",
+  "refreshTooltip": "Actualiser",
+  "optionsTooltip": "Options",
+  "viewMapLabel": "Voir la carte",
+  "viewButton": "Voir",
+  "expiredServicesTitle": "Demandes expirées",
+  "noExpiredServices": "Aucune demande expirée.",
+  "expiredServiceSingle": "1 demande a expiré et a été masquée de la liste.",
+  "expiredServiceMultiple": "{count} demandes ont expiré et ont été masquées de la liste.",
+  "@expiredServiceMultiple": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "expiredServiceDateLabel": "Expiré le {date}",
+  "@expiredServiceDateLabel": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "dateUnavailable": "Date indisponible",
+  "serviceLabel": "Service : {title}",
+  "@serviceLabel": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "serviceDateLabel": "Date : {date}",
+  "@serviceDateLabel": {
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "serviceStateLabel": "Statut : {status}",
+  "@serviceStateLabel": {
+    "placeholders": {
+      "status": {}
+    }
+  },
+  "serviceTurnLabel": "Tour : {turn}",
+  "@serviceTurnLabel": {
+    "placeholders": {
+      "turn": {}
+    }
+  },
+  "lastOfferLabel": "Dernière offre : {actor}",
+  "@lastOfferLabel": {
+    "placeholders": {
+      "actor": {}
+    }
+  },
+  "currentAmountLabel": "Montant actuel : {amount}",
+  "@currentAmountLabel": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
+  "workerProposalLabel": "Proposition du travailleur : {amount}",
+  "@workerProposalLabel": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
+  "clientOfferLabel": "Votre offre : {amount}",
+  "@clientOfferLabel": {
+    "placeholders": {
+      "amount": {}
+    }
+  },
+  "notificationsTitle": "Notifications",
+  "pendingPaymentsSection": "Paiements en attente",
+  "offersInNegotiationSection": "Offres en négociation",
+  "noNewOffers": "Vous n'avez pas de nouvelles offres.",
+  "offerAcceptedMessage": "Offre acceptée. Effectuez le paiement pour attribuer le service.",
+  "serviceAssignedMessage": "Service attribué",
+  "offerRejectedMessage": "Offre refusée",
+  "counterofferTitle": "Envoyer une contre-offre",
+  "counterofferPriceLabel": "Nouveau prix",
+  "counterofferNoteLabel": "Message (optionnel)",
+  "enterValidAmount": "Saisissez un montant valide",
+  "sendButton": "Envoyer",
+  "counterofferSent": "Contre-offre envoyée",
+  "acceptTooltip": "Accepter",
+  "rejectTooltip": "Refuser",
+  "counterofferTooltip": "Contre-offre",
+  "workerOfferLabel": "{worker} a fait une offre",
+  "@workerOfferLabel": {
+    "placeholders": {
+      "worker": {}
+    }
+  },
+  "serviceUpdatedMessage": "Service mis à jour",
+  "paymentStatusLabel": "État du paiement : {status}",
+  "@paymentStatusLabel": {
+    "placeholders": {
+      "status": {}
+    }
+  },
+  "paymentPendingTitle": "Paiement en attente",
+  "awaitingClientPayment": "En attente que le client lance le paiement pour ce service.",
+  "proceedToPayment": "Procéder au paiement",
+  "updateStatus": "Mettre à jour le statut",
+  "paymentRetryInfo": "Votre dernière tentative a été refusée. Vous pouvez réessayer pour que le travailleur commence.",
+  "paymentContinueInfo": "Effectuez le paiement pour confirmer l’affectation du travailleur.",
+  "paymentSyncInfo": "Nous synchronisons les informations de paiement. Si vous avez déjà payé, utilisez le bouton de mise à jour dans les notifications.",
+  "servicePublishedMessage": "Service publié avec succès",
+  "deleteServiceTitle": "Supprimer le service",
+  "deleteServiceConfirmation": "Voulez-vous vraiment supprimer cette publication ?",
+  "deleteButton": "Supprimer",
+  "serviceDefaultTitle": "Service",
+  "myAccount": "Mon compte",
+  "serviceFormPublishTitle": "Publication de services",
+  "serviceFormEditTitle": "Modifier le service",
+  "serviceTitleLabel": "Titre *",
+  "serviceDescriptionLabel": "Description *",
+  "serviceLocationLabel": "Emplacement *",
+  "serviceEstimatedDateLabel": "Date estimée *",
+  "selectDatePrompt": "Sélectionnez une date",
+  "datePickerHelp": "Sélectionnez la date estimée",
+  "titleRequiredError": "Le titre ne doit pas être vide",
+  "descriptionRequiredError": "La description ne doit pas être vide",
+  "categoryRequiredError": "Sélectionnez une catégorie",
+  "locationRequiredError": "L’emplacement est requis",
+  "dateInPastError": "La date ne peut pas être antérieure à aujourd’hui",
+  "invalidCategoryError": "Catégorie invalide",
+  "requiredFieldsNote": "* Champs obligatoires",
+  "saveButton": "Enregistrer",
+  "clientLabel": "Client",
+  "workerLabel": "Travailleur",
+  "negotiationInNegotiation": "En négociation",
+  "negotiationInProgress": "En cours",
+  "negotiationAccepted": "Acceptée",
+  "negotiationRejected": "Rejetée",
+  "negotiationClosed": "Clôturée",
+  "negotiationPending": "En attente",
+  "serviceStatePending": "En attente",
+  "serviceStatePaymentPending": "Paiement en attente",
+  "serviceStateInProgress": "En cours",
+  "serviceStateFinished": "Terminé",
+  "serviceStateExpired": "Expiré",
+  "paymentStatusPending": "Paiement en attente",
+  "paymentStatusRequiresPaymentMethod": "Nécessite un autre moyen",
+  "paymentStatusRequiresAction": "Action requise",
+  "paymentStatusSucceeded": "Paiement confirmé",
+  "paymentStatusFailed": "Paiement refusé",
+  "paymentStatusNotRequired": "Non requis",
+  "paymentStatusDefault": "Paiement",
+  "manageAccountLabel": "Gérer le compte",
+  "logoutLabel": "Se déconnecter",
+  "closeTooltip": "Fermer",
+  "profileGreeting": "Bonjour !",
+  "profileGreetingWithName": "Bonjour, {name} !",
+  "@profileGreetingWithName": {
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "serviceExpirationWarning": "Attention : le service \"{title}\" expire aujourd’hui et sera automatiquement supprimé à minuit s’il reste en attente.",
+  "@serviceExpirationWarning": {
+    "placeholders": {
+      "title": {}
+    }
+  },
+  "serviceDeletedMessage": "Service supprimé",
+  "serviceDeleteBlockedMessage": "Impossible de supprimer un service accepté."
+}
