@@ -231,5 +231,32 @@
     }
   },
   "serviceDeletedMessage": "Servicio eliminado",
-  "serviceDeleteBlockedMessage": "No se puede eliminar un servicio aceptado."
+  "serviceDeleteBlockedMessage": "No se puede eliminar un servicio aceptado.",
+  "workerEditAccount": "Editar cuenta",
+  "workerActiveAccount": "Cuenta activa",
+  "workerInactiveAccount": "Cuenta inactiva",
+  "workerHomeTitle": "Workify Trabajador",
+  "workerNoResponses": "No tienes nuevas respuestas.",
+  "workerInvalidAmount": "Monto inválido",
+  "workerOfferForService": "Ofertar para {title}",
+  "workerPriceProposed": "Precio propuesto",
+  "workerOfferButton": "Enviar oferta",
+  "workerOfferTooltip": "Enviar una nueva oferta",
+  "workerOfferDisabled": "Este servicio ya no admite nuevas ofertas",
+  "workerHiddenExpiredPipe": "Se ocultaron {count} solicitudes vencidas.",
+  "workerNoOpportunities": "No hay oportunidades disponibles en tu área por ahora.",
+  "workerNegotiationLabel": "Negociación: {status}",
+  "workerOfferSent": "Oferta enviada",
+  "workerAccountLoadButton": "Cargar datos de mi cuenta",
+  "workerAccountUpdated": "Datos de cuenta actualizados",
+  "workerLoadError": "No fue posible cargar los datos de tu cuenta.",
+  "workerClientOfferLabel": "{client} ofertó {amount}",
+  "workerOpportunitiesTitle": "Tus oportunidades",
+  "optionalMessageLabel": "Mensaje (opcional)",
+  "workerOfferError": "Error al ofertar: {message}",
+  "@workerOfferError": {
+    "placeholders": {
+      "message": {}
+    }
+  }
 }

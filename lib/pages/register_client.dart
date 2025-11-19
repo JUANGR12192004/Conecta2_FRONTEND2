@@ -1,6 +1,9 @@
-import 'dart:convert';
+﻿import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
 import 'package:http/http.dart' as http;
+
 import '../ui/theme/app_theme.dart';
 
 /// Página de registro para CLIENTE con estilo renovado
@@ -13,8 +16,6 @@ class RegisterClientPage extends StatefulWidget {
 
 class _RegisterClientPageState extends State<RegisterClientPage> {
   final _formKey = GlobalKey<FormState>();
-
-  // Controllers
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
@@ -26,12 +27,9 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
   bool _obscurePass = true;
   bool _obscureConfirm = true;
 
-  // Errores específicos por campo devueltos por el backend
   Map<String, String> fieldErrors = {};
-
-  // Cambia host si ejecutas en emulador Android (10.0.2.2) o IP de tu PC
   final String baseHost = "http://localhost:8080";
-  String get registerUrl => "$baseHost/api/v1/auth/clients/register";
+  String get registerUrl => "/api/v1/auth/clients/register";
 
   void _showSnack(String message, {Color? background}) {
     if (!mounted) return;
@@ -46,7 +44,6 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
 
   void _clearFieldErrors() => setState(() => fieldErrors = {});
 
-  // Muestra error específico bajo cada TextFormField
   Widget _fieldError(String key) {
     final msg = fieldErrors[key];
     if (msg == null || msg.isEmpty) return const SizedBox.shrink();
@@ -57,15 +54,16 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
   }
 
   Future<void> _register() async {
+    final l10n = AppLocalizations.of(context)!;
     _clearFieldErrors();
 
     if (!_formKey.currentState!.validate()) return;
     if (!_termsAccepted) {
-      _showSnack("Debes aceptar los términos y condiciones.");
+      _showSnack(l10n.termsError);
       return;
     }
     if (_passCtrl.text != _confirmCtrl.text) {
-      _showSnack("Las contraseñas no coinciden.");
+      _showSnack(l10n.passwordsMismatch);
       return;
     }
 
@@ -88,10 +86,10 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
       if (!mounted) return;
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        String msg = "Registro recibido. Revisa tu correo para activar la cuenta.";
+        var msg = l10n.registrationReceived;
         try {
-          final Map<String, dynamic> data = jsonDecode(response.body);
-          if (data["mensaje"] is String) msg = data["mensaje"];
+          final data = jsonDecode(response.body);
+          if (data["mensaje"] is String) msg = data["mensaje"] as String;
         } catch (_) {}
 
         _showSnack(msg, background: Colors.green);
@@ -110,9 +108,8 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
       }
 
       if (decoded is Map && decoded.containsKey("errores")) {
-        final List<dynamic> errores = decoded["errores"];
-        final Map<String, String> parsed = {};
-        for (var e in errores) {
+        final parsed = <String, String>{};
+        for (var e in decoded["errores"] as List<dynamic>) {
           if (e is String && e.contains(":")) {
             final parts = e.split(":");
             final key = parts[0].trim();
@@ -124,13 +121,13 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
         }
         setState(() => fieldErrors = parsed);
         if (decoded.containsKey("mensaje")) {
-          _showSnack(decoded["mensaje"]);
+          _showSnack(decoded["mensaje"].toString());
         }
         return;
       }
 
       if (decoded is Map && decoded.containsKey("mensaje")) {
-        _showSnack(decoded["mensaje"]);
+        _showSnack(decoded["mensaje"].toString());
         return;
       }
 
@@ -139,11 +136,11 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
         return;
       }
 
-      _showSnack("Error desconocido: ${response.statusCode}");
+      _showSnack(l10n.unknownError);
     } on http.ClientException catch (e) {
-      _showSnack("Error de conexión: ${e.message}");
+      _showSnack(l10n.connectionError(e.message ?? e.toString()));
     } on Exception catch (e) {
-      _showSnack("Ocurrió un error: $e");
+      _showSnack(l10n.errorMessage(e.toString()));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -162,6 +159,8 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -172,27 +171,24 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text("Crea tu cuenta", style: theme.textTheme.headlineSmall),
+                  Text(l10n.registerTitleClient, style: theme.textTheme.headlineSmall),
                   Chip(
                     avatar: const Icon(Icons.verified, color: AppColors.primary, size: 18),
-                    label: const Text("Identidad verificada"),
+                    label: Text(l10n.verifiedIdentity),
                     backgroundColor: AppColors.surface,
                   ),
                 ],
               ),
               const SizedBox(height: 6),
-              Text(
-                "Conecta con trabajadores confiables y paga seguro.",
-                style: theme.textTheme.bodyMedium,
-              ),
+              Text(l10n.registerSubtitleClient, style: theme.textTheme.bodyMedium),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
-                children: const [
-                  _Tag(text: "Pagos protegidos", icon: Icons.lock_outline),
-                  _Tag(text: "Soporte 24/7", icon: Icons.support_agent),
-                  _Tag(text: "Servicios verificados", icon: Icons.shield_moon_outlined),
+                children: [
+                  _Tag(text: l10n.registerTagProtected, icon: Icons.lock_outline),
+                  _Tag(text: l10n.registerTagSupport, icon: Icons.support_agent),
+                  _Tag(text: l10n.registerTagVerified, icon: Icons.shield_moon_outlined),
                 ],
               ),
               const SizedBox(height: 16),
@@ -206,17 +202,17 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Datos personales", style: theme.textTheme.titleMedium),
+                        Text(l10n.personalDataTitle, style: theme.textTheme.titleMedium),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _nameCtrl,
-                          decoration: const InputDecoration(
-                            labelText: "Nombre completo",
-                            prefixIcon: Icon(Icons.person),
+                          decoration: InputDecoration(
+                            labelText: l10n.nameLabel,
+                            prefixIcon: const Icon(Icons.person),
                           ),
                           validator: (value) {
                             if (value == null || value.trim().length < 3) {
-                              return "Ingresa tu nombre (mínimo 3 caracteres)";
+                              return l10n.nameMinError;
                             }
                             return null;
                           },
@@ -225,15 +221,15 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _emailCtrl,
-                          decoration: const InputDecoration(
-                            labelText: "Correo electrónico",
-                            prefixIcon: Icon(Icons.email),
+                          decoration: InputDecoration(
+                            labelText: l10n.emailLabel,
+                            prefixIcon: const Icon(Icons.email),
                           ),
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
-                            if (value == null || value.isEmpty) return "Ingresa tu correo";
+                            if (value == null || value.isEmpty) return l10n.emailEmptyError;
                             final regex = RegExp(r"^[^@]+@[^@]+\.[^@]+");
-                            if (!regex.hasMatch(value)) return "Correo inválido";
+                            if (!regex.hasMatch(value)) return l10n.emailInvalidError;
                             return null;
                           },
                         ),
@@ -241,14 +237,14 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _phoneCtrl,
-                          decoration: const InputDecoration(
-                            labelText: "Celular",
-                            prefixIcon: Icon(Icons.phone),
+                          decoration: InputDecoration(
+                            labelText: l10n.phoneLabel,
+                            prefixIcon: const Icon(Icons.phone),
                           ),
                           keyboardType: TextInputType.phone,
                           validator: (value) {
-                            if (value == null || value.isEmpty) return "Ingresa tu celular";
-                            if (value.length < 7) return "Número inválido";
+                            if (value == null || value.isEmpty) return l10n.phoneEmptyError;
+                            if (value.length < 7) return l10n.phoneInvalidError;
                             return null;
                           },
                         ),
@@ -258,7 +254,7 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
                           controller: _passCtrl,
                           obscureText: _obscurePass,
                           decoration: InputDecoration(
-                            labelText: "Contraseña",
+                            labelText: l10n.passwordLabel,
                             prefixIcon: const Icon(Icons.lock),
                             suffixIcon: IconButton(
                               icon: Icon(_obscurePass ? Icons.visibility : Icons.visibility_off),
@@ -266,7 +262,7 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
                             ),
                           ),
                           validator: (value) {
-                            if (value == null || value.length < 6) return "Mínimo 6 caracteres";
+                            if (value == null || value.length < 6) return l10n.passwordMinError;
                             return null;
                           },
                         ),
@@ -276,7 +272,7 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
                           controller: _confirmCtrl,
                           obscureText: _obscureConfirm,
                           decoration: InputDecoration(
-                            labelText: "Confirmar contraseña",
+                            labelText: l10n.confirmPasswordLabel,
                             prefixIcon: const Icon(Icons.lock_outline),
                             suffixIcon: IconButton(
                               icon: Icon(_obscureConfirm ? Icons.visibility : Icons.visibility_off),
@@ -284,7 +280,7 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
                             ),
                           ),
                           validator: (value) {
-                            if (value == null || value.isEmpty) return "Confirma tu contraseña";
+                            if (value == null || value.isEmpty) return l10n.confirmPasswordError;
                             return null;
                           },
                         ),
@@ -296,8 +292,8 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
                               value: _termsAccepted,
                               onChanged: (val) => setState(() => _termsAccepted = val ?? false),
                             ),
-                            const Expanded(
-                              child: Text("Acepto los términos y condiciones y la política de privacidad."),
+                            Expanded(
+                              child: Text(l10n.termsAgreement),
                             ),
                           ],
                         ),
@@ -315,7 +311,7 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
                                       color: Colors.white,
                                     ),
                                   )
-                                : const Text("Crear cuenta"),
+                                : Text(l10n.createAccountButton),
                           ),
                         ),
                       ],

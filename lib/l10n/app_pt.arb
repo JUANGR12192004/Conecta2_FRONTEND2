@@ -231,5 +231,32 @@
     }
   },
   "serviceDeletedMessage": "Serviço excluído",
-  "serviceDeleteBlockedMessage": "Não é possível excluir um serviço aceito."
+  "serviceDeleteBlockedMessage": "Não é possível excluir um serviço aceito.",
+  "workerEditAccount": "Editar conta",
+  "workerActiveAccount": "Conta ativa",
+  "workerInactiveAccount": "Conta inativa",
+  "workerHomeTitle": "Painel do trabalhador",
+  "workerNoResponses": "Você não tem novas respostas.",
+  "workerInvalidAmount": "Valor inválido",
+  "workerOfferForService": "Ofertar por {title}",
+  "workerPriceProposed": "Preço proposto",
+  "workerOfferButton": "Enviar proposta",
+  "workerOfferTooltip": "Enviar uma nova proposta",
+  "workerOfferDisabled": "Este serviço não aceita novas propostas",
+  "workerHiddenExpiredPipe": "{count} solicitações expiradas foram ocultadas.",
+  "workerNoOpportunities": "Não há oportunidades disponíveis na sua região no momento.",
+  "workerNegotiationLabel": "Negociação: {status}",
+  "workerOfferSent": "Proposta enviada",
+  "workerAccountLoadButton": "Carregar dados da minha conta",
+  "workerAccountUpdated": "Dados da conta atualizados",
+  "workerLoadError": "Não foi possível carregar os dados da sua conta.",
+  "workerClientOfferLabel": "{client} ofereceu {amount}",
+  "workerOpportunitiesTitle": "Suas oportunidades",
+  "optionalMessageLabel": "Mensagem (opcional)",
+  "workerOfferError": "Erro ao enviar a oferta: {message}",
+  "@workerOfferError": {
+    "placeholders": {
+      "message": {}
+    }
+  }
 }

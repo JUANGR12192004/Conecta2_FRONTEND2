@@ -231,5 +231,32 @@
     }
   },
   "serviceDeletedMessage": "Service deleted",
-  "serviceDeleteBlockedMessage": "Cannot delete an accepted service."
+  "serviceDeleteBlockedMessage": "Cannot delete an accepted service.",
+  "workerEditAccount": "Edit account",
+  "workerActiveAccount": "Active account",
+  "workerInactiveAccount": "Inactive account",
+  "workerHomeTitle": "Worker dashboard",
+  "workerNoResponses": "You have no new responses.",
+  "workerInvalidAmount": "Invalid amount",
+  "workerOfferForService": "Offer for {title}",
+  "workerPriceProposed": "Proposed price",
+  "workerOfferButton": "Submit offer",
+  "workerOfferTooltip": "Send a new offer",
+  "workerOfferDisabled": "This service no longer accepts new offers",
+  "workerHiddenExpiredPipe": "{count} expired requests were hidden.",
+  "workerNoOpportunities": "No opportunities available in your area right now.",
+  "workerNegotiationLabel": "Negotiation: {status}",
+  "workerOfferSent": "Offer sent",
+  "workerAccountLoadButton": "Load my account data",
+  "workerAccountUpdated": "Account data updated",
+  "workerLoadError": "Could not load your account data.",
+  "workerClientOfferLabel": "{client} offered {amount}",
+  "workerOpportunitiesTitle": "Available opportunities",
+  "optionalMessageLabel": "Message (optional)",
+  "workerOfferError": "Error placing offer: {message}",
+  "@workerOfferError": {
+    "placeholders": {
+      "message": {}
+    }
+  }
 }

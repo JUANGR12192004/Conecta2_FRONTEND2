@@ -548,6 +548,83 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get serviceDeleteBlockedMessage =>
       'Cannot delete an accepted service.';
+
+  @override
+  String get workerEditAccount => 'Edit account';
+
+  @override
+  String get workerActiveAccount => 'Active account';
+
+  @override
+  String get workerInactiveAccount => 'Inactive account';
+
+  @override
+  String get workerHomeTitle => 'Worker dashboard';
+
+  @override
+  String get workerNoResponses => 'You have no new responses.';
+
+  @override
+  String get workerInvalidAmount => 'Invalid amount';
+
+  @override
+  String workerOfferForService(Object title) {
+    return 'Offer for $title';
+  }
+
+  @override
+  String get workerPriceProposed => 'Proposed price';
+
+  @override
+  String get workerOfferButton => 'Submit offer';
+
+  @override
+  String get workerOfferTooltip => 'Send a new offer';
+
+  @override
+  String get workerOfferDisabled => 'This service no longer accepts new offers';
+
+  @override
+  String workerHiddenExpiredPipe(Object count) {
+    return '$count expired requests were hidden.';
+  }
+
+  @override
+  String get workerNoOpportunities =>
+      'No opportunities available in your area right now.';
+
+  @override
+  String workerNegotiationLabel(Object status) {
+    return 'Negotiation: $status';
+  }
+
+  @override
+  String get workerOfferSent => 'Offer sent';
+
+  @override
+  String get workerAccountLoadButton => 'Load my account data';
+
+  @override
+  String get workerAccountUpdated => 'Account data updated';
+
+  @override
+  String get workerLoadError => 'Could not load your account data.';
+
+  @override
+  String workerClientOfferLabel(Object amount, Object client) {
+    return '$client offered $amount';
+  }
+
+  @override
+  String get workerOpportunitiesTitle => 'Available opportunities';
+
+  @override
+  String get optionalMessageLabel => 'Message (optional)';
+
+  @override
+  String workerOfferError(Object message) {
+    return 'Error placing offer: $message';
+  }
 }
 
 /// The translations for English, as used in the United States (`en_US`).
@@ -1094,4 +1171,81 @@ class AppLocalizationsEnUs extends AppLocalizationsEn {
   @override
   String get serviceDeleteBlockedMessage =>
       'Cannot delete an accepted service.';
+
+  @override
+  String get workerEditAccount => 'Edit account';
+
+  @override
+  String get workerActiveAccount => 'Active account';
+
+  @override
+  String get workerInactiveAccount => 'Inactive account';
+
+  @override
+  String get workerHomeTitle => 'Worker dashboard';
+
+  @override
+  String get workerNoResponses => 'You have no new responses.';
+
+  @override
+  String get workerInvalidAmount => 'Invalid amount';
+
+  @override
+  String workerOfferForService(Object title) {
+    return 'Offer for $title';
+  }
+
+  @override
+  String get workerPriceProposed => 'Proposed price';
+
+  @override
+  String get workerOfferButton => 'Submit offer';
+
+  @override
+  String get workerOfferTooltip => 'Send a new offer';
+
+  @override
+  String get workerOfferDisabled => 'This service no longer accepts new offers';
+
+  @override
+  String workerHiddenExpiredPipe(Object count) {
+    return '$count expired requests were hidden.';
+  }
+
+  @override
+  String get workerNoOpportunities =>
+      'No opportunities available in your area right now.';
+
+  @override
+  String workerNegotiationLabel(Object status) {
+    return 'Negotiation: $status';
+  }
+
+  @override
+  String get workerOfferSent => 'Offer sent';
+
+  @override
+  String get workerAccountLoadButton => 'Load my account data';
+
+  @override
+  String get workerAccountUpdated => 'Account data updated';
+
+  @override
+  String get workerLoadError => 'Could not load your account data.';
+
+  @override
+  String workerClientOfferLabel(Object amount, Object client) {
+    return '$client offered $amount';
+  }
+
+  @override
+  String get workerOpportunitiesTitle => 'Available opportunities';
+
+  @override
+  String get optionalMessageLabel => 'Message (optional)';
+
+  @override
+  String workerOfferError(Object message) {
+    return 'Error placing offer: $message';
+  }
 }

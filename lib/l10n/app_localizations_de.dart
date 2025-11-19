@@ -550,6 +550,84 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get serviceDeleteBlockedMessage =>
       'Ein akzeptierter Dienst kann nicht gelöscht werden.';
+
+  @override
+  String get workerEditAccount => 'Konto bearbeiten';
+
+  @override
+  String get workerActiveAccount => 'Aktives Konto';
+
+  @override
+  String get workerInactiveAccount => 'Inaktives Konto';
+
+  @override
+  String get workerHomeTitle => 'Worker-Bereich';
+
+  @override
+  String get workerNoResponses => 'Du hast keine neuen Antworten.';
+
+  @override
+  String get workerInvalidAmount => 'Ungültiger Betrag';
+
+  @override
+  String workerOfferForService(Object title) {
+    return 'Angebot für $title';
+  }
+
+  @override
+  String get workerPriceProposed => 'Vorgeschlagener Preis';
+
+  @override
+  String get workerOfferButton => 'Angebot senden';
+
+  @override
+  String get workerOfferTooltip => 'Neues Angebot senden';
+
+  @override
+  String get workerOfferDisabled =>
+      'Dieser Dienst akzeptiert keine neuen Angebote mehr';
+
+  @override
+  String workerHiddenExpiredPipe(Object count) {
+    return '$count abgelaufene Anfragen wurden ausgeblendet.';
+  }
+
+  @override
+  String get workerNoOpportunities =>
+      'Derzeit gibt es keine Möglichkeiten in Ihrer Region.';
+
+  @override
+  String workerNegotiationLabel(Object status) {
+    return 'Verhandlung: $status';
+  }
+
+  @override
+  String get workerOfferSent => 'Angebot gesendet';
+
+  @override
+  String get workerAccountLoadButton => 'Meine Kontodaten laden';
+
+  @override
+  String get workerAccountUpdated => 'Kontodaten aktualisiert';
+
+  @override
+  String get workerLoadError => 'Kontodaten konnten nicht geladen werden.';
+
+  @override
+  String workerClientOfferLabel(Object amount, Object client) {
+    return '$client bot $amount';
+  }
+
+  @override
+  String get workerOpportunitiesTitle => 'Verfügbare Chancen';
+
+  @override
+  String get optionalMessageLabel => 'Nachricht (optional)';
+
+  @override
+  String workerOfferError(Object message) {
+    return 'Fehler beim Abgeben des Angebots: $message';
+  }
 }
 
 /// The translations for German, as used in Germany (`de_DE`).
@@ -1098,4 +1176,82 @@ class AppLocalizationsDeDe extends AppLocalizationsDe {
   @override
   String get serviceDeleteBlockedMessage =>
       'Ein akzeptierter Dienst kann nicht gelöscht werden.';
+
+  @override
+  String get workerEditAccount => 'Konto bearbeiten';
+
+  @override
+  String get workerActiveAccount => 'Aktives Konto';
+
+  @override
+  String get workerInactiveAccount => 'Inaktives Konto';
+
+  @override
+  String get workerHomeTitle => 'Worker-Bereich';
+
+  @override
+  String get workerNoResponses => 'Du hast keine neuen Antworten.';
+
+  @override
+  String get workerInvalidAmount => 'Ungültiger Betrag';
+
+  @override
+  String workerOfferForService(Object title) {
+    return 'Angebot für $title';
+  }
+
+  @override
+  String get workerPriceProposed => 'Vorgeschlagener Preis';
+
+  @override
+  String get workerOfferButton => 'Angebot senden';
+
+  @override
+  String get workerOfferTooltip => 'Neues Angebot senden';
+
+  @override
+  String get workerOfferDisabled =>
+      'Dieser Dienst akzeptiert keine neuen Angebote mehr';
+
+  @override
+  String workerHiddenExpiredPipe(Object count) {
+    return '$count abgelaufene Anfragen wurden ausgeblendet.';
+  }
+
+  @override
+  String get workerNoOpportunities =>
+      'Derzeit gibt es keine Möglichkeiten in Ihrer Region.';
+
+  @override
+  String workerNegotiationLabel(Object status) {
+    return 'Verhandlung: $status';
+  }
+
+  @override
+  String get workerOfferSent => 'Angebot gesendet';
+
+  @override
+  String get workerAccountLoadButton => 'Meine Kontodaten laden';
+
+  @override
+  String get workerAccountUpdated => 'Kontodaten aktualisiert';
+
+  @override
+  String get workerLoadError => 'Kontodaten konnten nicht geladen werden.';
+
+  @override
+  String workerClientOfferLabel(Object amount, Object client) {
+    return '$client bot $amount';
+  }
+
+  @override
+  String get workerOpportunitiesTitle => 'Verfügbare Chancen';
+
+  @override
+  String get optionalMessageLabel => 'Nachricht (optional)';
+
+  @override
+  String workerOfferError(Object message) {
+    return 'Fehler beim Abgeben des Angebots: $message';
+  }
 }

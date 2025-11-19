@@ -231,5 +231,32 @@
     }
   },
   "serviceDeletedMessage": "Service supprimé",
-  "serviceDeleteBlockedMessage": "Impossible de supprimer un service accepté."
+  "serviceDeleteBlockedMessage": "Impossible de supprimer un service accepté.",
+  "workerEditAccount": "Modifier le compte",
+  "workerActiveAccount": "Compte actif",
+  "workerInactiveAccount": "Compte inactif",
+  "workerHomeTitle": "Espace travailleur",
+  "workerNoResponses": "Vous n'avez pas de nouvelles réponses.",
+  "workerInvalidAmount": "Montant invalide",
+  "workerOfferForService": "Offrir pour {title}",
+  "workerPriceProposed": "Prix proposé",
+  "workerOfferButton": "Envoyer l’offre",
+  "workerOfferTooltip": "Envoyer une nouvelle offre",
+  "workerOfferDisabled": "Ce service n’accepte plus de nouvelles offres",
+  "workerHiddenExpiredPipe": "{count} demandes expirées ont été masquées.",
+  "workerNoOpportunities": "Aucune opportunité disponible dans votre zone pour le moment.",
+  "workerNegotiationLabel": "Négociation : {status}",
+  "workerOfferSent": "Offre envoyée",
+  "workerAccountLoadButton": "Charger mes informations",
+  "workerAccountUpdated": "Informations du compte mises à jour",
+  "workerLoadError": "Impossible de charger vos données.",
+  "workerClientOfferLabel": "{client} a proposé {amount}",
+  "workerOpportunitiesTitle": "Opportunités disponibles",
+  "optionalMessageLabel": "Message (facultatif)",
+  "workerOfferError": "Erreur lors de l'envoi de l'offre : {message}",
+  "@workerOfferError": {
+    "placeholders": {
+      "message": {}
+    }
+  }
 }

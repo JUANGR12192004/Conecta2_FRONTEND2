@@ -1,147 +1,58 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'ui/theme/app_theme.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-// OJO: respeta las mayúsculas/minúsculas EXACTAS de tus archivos/clases
-import 'pages/login.dart';
-import 'pages/register_worker.dart';
-import 'pages/register_client.dart';
 import 'pages/client_home.dart';
+import 'pages/home.dart';
+import 'pages/login.dart';
+import 'pages/register_client.dart';
+import 'pages/register_worker.dart';
 import 'pages/worker_home.dart';
+import 'services/locale_provider.dart';
+import 'ui/theme/app_theme.dart';
+import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
 
-
-void main() {
-  runApp(const MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  runApp(MyApp(prefs: prefs));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key, required this.prefs});
+
+  final SharedPreferences prefs;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      // ✅ Localizations para DatePicker, etc.
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      supportedLocales: const [
-        Locale('es', 'CO'),
-        Locale('es', ''), // fallback
-        Locale('en', 'US'),
-      ],
-      title: 'Workify',
-      theme: AppTheme.light(),
-      initialRoute: "/",
-      routes: {
-        "/": (context) => const HomePage(),
-        "/login": (context) =>
-            const LoginPage(), // Login único que recibe el rol por arguments
-        "/registerWorker": (context) =>
-            const RegisterWorkerPage(), // ✅ nombre correcto de la clase
-        "/registerClient": (context) => const RegisterClientPage(),
-        "/clientHome": (context) =>
-            const ClientHome(), // Pantalla principal del Cliente
-        "/workerHome": (context) =>
-            const WorkerHome(), // Panel inicial del Trabajador
+    return ChangeNotifierProvider<LocaleProvider>(
+      create: (_) => LocaleProvider(prefs),
+      builder: (context, child) {
+        final localeProvider = context.watch<LocaleProvider>();
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: localeProvider.supportedLocales,
+          locale: localeProvider.locale,
+          title: 'Workify',
+          theme: AppTheme.light(),
+          initialRoute: "/",
+          routes: {
+            "/": (context) => const HomePage(),
+            "/login": (context) => const LoginPage(),
+            "/registerWorker": (context) => const RegisterWorkerPage(),
+            "/registerClient": (context) => const RegisterClientPage(),
+            "/clientHome": (context) => const ClientHome(),
+            "/workerHome": (context) => const WorkerHome(),
+          },
+        );
       },
-    );
-  }
-}
-
-/// Pantalla principal con el logo y selección de rol
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  String? selectedRole; // "worker" o "client"
-
-  @override
-  Widget build(BuildContext context) {
-    Color bgColor = Colors.white;
-    if (selectedRole == "worker") {
-      bgColor = Colors.blue.shade50;
-    } else if (selectedRole == "client") {
-      bgColor = Colors.green.shade50;
-    }
-
-    return Scaffold(
-      backgroundColor: bgColor,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Logo Conecta2 (asegúrate de tenerlo en assets y pubspec.yaml)
-                Image.asset("assets/LogoConecta2.png", height: 140),
-                const SizedBox(height: 24),
-                const Text(
-                  "Bienvenido a Workify",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 24),
-
-                // Botón Trabajador
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() => selectedRole = "worker");
-                      Navigator.pushNamed(
-                        context,
-                        "/login",
-                        arguments: {"role": "worker"},
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text("Soy Trabajador"),
-                  ),
-                ),
-                const SizedBox(height: 14),
-
-                // Botón Cliente
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() => selectedRole = "client");
-                      Navigator.pushNamed(
-                        context,
-                        "/login",
-                        arguments: {"role": "client"},
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      minimumSize: const Size(double.infinity, 48),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text("Soy Cliente"),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

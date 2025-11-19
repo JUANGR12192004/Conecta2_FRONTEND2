@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
+
 import '../services/api_service.dart';
 import '../ui/theme/app_theme.dart';
 
@@ -18,15 +20,13 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscure = true;
   late String _role; // "worker" | "client"
 
-  // 🔹 Token en memoria (TRABAJADOR)
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final args =
         ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
     final raw = (args?['role'] as String?)?.toLowerCase().trim();
-    _role = (raw == 'worker' || raw == 'client') ? raw! : 'client'; // default
+    _role = (raw == 'worker' || raw == 'client') ? raw! : 'client';
   }
 
   Color get primary =>
@@ -34,9 +34,9 @@ class _LoginPageState extends State<LoginPage> {
   Color get secondary =>
       _role == 'worker' ? const Color(0xFF19C3FF) : const Color(0xFF00D7B0);
 
-  String get title => _role == 'worker'
-      ? "Inicia sesión como Trabajador"
-      : "Inicia sesión como Cliente";
+  String title(AppLocalizations l10n) => _role == 'worker'
+      ? l10n.loginTitleWorker
+      : l10n.loginTitleClient;
 
   int? _extractUserId(Map<String, dynamic> payload) {
     const candidates = [
@@ -58,21 +58,18 @@ class _LoginPageState extends State<LoginPage> {
     return null;
   }
 
-  // 🔹 Banner para cuenta no verificada
-  void _showUnverifiedBanner() {
+  void _showUnverifiedBanner(BuildContext context) {
     final messenger = ScaffoldMessenger.of(context);
     messenger.clearMaterialBanners();
     messenger.showMaterialBanner(
       MaterialBanner(
-        content: const Text(
-          "Tu cuenta no está verificada. Revisa tu correo y activa tu cuenta para poder iniciar sesión.",
-        ),
+        content: Text(AppLocalizations.of(context)!.unverifiedAccountMessage),
         leading: const Icon(Icons.info_outline),
         backgroundColor: Colors.amber.shade100,
         actions: [
           TextButton(
             onPressed: () => messenger.hideCurrentMaterialBanner(),
-            child: const Text("Entendido"),
+            child: Text(AppLocalizations.of(context)!.understood),
           ),
         ],
       ),
@@ -90,14 +87,6 @@ class _LoginPageState extends State<LoginPage> {
           correo: _emailCtrl.text.trim(),
           contrasena: _passwordCtrl.text,
         );
-
-        // 🔹 TOMAR TOKEN de trabajador si viene en la respuesta
-        final tok = resp['token'] as String?;
-        if (tok != null && tok.isNotEmpty) {
-          // TODO: si deseas persistir: usa flutter_secure_storage
-          // final storage = const FlutterSecureStorage();
-          // await storage.write(key: 'auth_token', value: tok);
-        }
       } else {
         resp = await ApiService.loginClient(
           correo: _emailCtrl.text.trim(),
@@ -106,16 +95,18 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (!mounted) return;
-      final nombre = resp['nombreCompleto'] ?? resp['nombre'] ?? '¡Bienvenido!';
+      final nombre = resp['nombreCompleto'] ?? resp['nombre'] ?? '';
+      final l10n = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Bienvenido $nombre"),
+          content: Text(
+            l10n.welcomeUser(nombre.isNotEmpty ? nombre : l10n.appTitle),
+          ),
           backgroundColor: primary,
           behavior: SnackBarBehavior.floating,
         ),
       );
 
-      // Redireccion segun el rol autenticado
       final route = _role == 'worker' ? '/workerHome' : '/clientHome';
       final args = <String, dynamic>{"role": _role, "profile": resp};
       final userId = _extractUserId(resp);
@@ -124,18 +115,16 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.pushReplacementNamed(context, route, arguments: args);
     } catch (e) {
       if (!mounted) return;
-      // 👇 AQUI: redirige al Home del Cliente
-
-      // 🔹 Detección simple del caso "Cuenta no verificada"
       final msg = e.toString();
       final noVerificada = msg.toLowerCase().contains("no verificada");
+      final l10n = AppLocalizations.of(context)!;
 
       if (noVerificada && _role == 'worker') {
-        _showUnverifiedBanner();
+        _showUnverifiedBanner(context);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Error: $e"),
+            content: Text(l10n.errorMessage(e.toString())),
             backgroundColor: Colors.red,
             behavior: SnackBarBehavior.floating,
           ),
@@ -164,10 +153,11 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final features = [
-      (Icons.lock_outline, "Pagos seguros"),
-      (Icons.verified_user, "Identidad validada"),
-      (Icons.shield, "Soporte y seguridad"),
+    final l10n = AppLocalizations.of(context)!;
+    final featureItems = [
+      _FeatureItem(Icons.lock_outline, l10n.loginFeaturePayments),
+      _FeatureItem(Icons.verified_user, l10n.loginFeatureIdentity),
+      _FeatureItem(Icons.shield, l10n.loginFeatureSupport),
     ];
 
     return Scaffold(
@@ -199,25 +189,25 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(width: 12),
                         Text(
-                          title,
+                          title(l10n),
                           style: theme.textTheme.headlineSmall?.copyWith(color: Colors.white),
                         ),
                       ],
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      "Conecta con oficios verificados, paga seguro y lleva seguimiento en tiempo real.",
+                      l10n.loginDescription,
                       style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70),
                     ),
                     const SizedBox(height: 16),
                     Wrap(
                       spacing: 10,
                       runSpacing: 10,
-                      children: features
+                      children: featureItems
                           .map(
-                            (f) => Chip(
-                              avatar: Icon(f.$1, size: 18, color: primary),
-                              label: Text(f.$2),
+                            (item) => Chip(
+                              avatar: Icon(item.icon, size: 18, color: primary),
+                              label: Text(item.label),
                               backgroundColor: Colors.white,
                             ),
                           )
@@ -226,7 +216,8 @@ class _LoginPageState extends State<LoginPage> {
                     const SizedBox(height: 18),
                     Card(
                       elevation: 8,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                      shape:
+                          RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
                         child: Form(
@@ -235,27 +226,31 @@ class _LoginPageState extends State<LoginPage> {
                             children: [
                               Row(
                                 children: [
-                                  Icon(_role == 'worker' ? Icons.construction : Icons.home_repair_service,
+                                  Icon(
+                                      _role == 'worker'
+                                          ? Icons.construction
+                                          : Icons.home_repair_service,
                                       color: primary),
                                   const SizedBox(width: 10),
-                                  Text("Acceso seguro", style: theme.textTheme.titleMedium),
+                                  Text(l10n.accessTitle,
+                                      style: theme.textTheme.titleMedium),
                                 ],
                               ),
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _emailCtrl,
                                 keyboardType: TextInputType.emailAddress,
-                                decoration: const InputDecoration(
-                                  labelText: "Correo electrónico",
-                                  prefixIcon: Icon(Icons.email_outlined),
+                                decoration: InputDecoration(
+                                  labelText: l10n.emailLabel,
+                                  prefixIcon: const Icon(Icons.email_outlined),
                                 ),
                                 validator: (v) {
                                   if (v == null || v.trim().isEmpty) {
-                                    return "Ingresa tu correo";
+                                    return l10n.emailEmptyError;
                                   }
                                   final rx = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
                                   if (!rx.hasMatch(v.trim())) {
-                                    return "Correo inválido";
+                                    return l10n.emailInvalidError;
                                   }
                                   return null;
                                 },
@@ -265,21 +260,22 @@ class _LoginPageState extends State<LoginPage> {
                                 controller: _passwordCtrl,
                                 obscureText: _obscure,
                                 decoration: InputDecoration(
-                                  labelText: "Contraseña",
+                                  labelText: l10n.passwordLabel,
                                   prefixIcon: const Icon(Icons.lock_outline),
                                   suffixIcon: IconButton(
                                     onPressed: () => setState(() => _obscure = !_obscure),
                                     icon: Icon(_obscure ? Icons.visibility : Icons.visibility_off),
                                   ),
                                 ),
-                                validator: (v) => (v == null || v.isEmpty) ? "Ingresa tu contraseña" : null,
+                                validator: (v) =>
+                                    (v == null || v.isEmpty) ? l10n.passwordEmptyError : null,
                               ),
                               const SizedBox(height: 8),
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
                                   onPressed: () {},
-                                  child: const Text("¿Olvidaste tu contraseña?"),
+                                  child: Text(l10n.forgotPassword),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -296,13 +292,13 @@ class _LoginPageState extends State<LoginPage> {
                                             color: Colors.white,
                                           ),
                                         )
-                                      : const Text("Iniciar sesión"),
+                                      : Text(l10n.loginButton),
                                 ),
                               ),
                               const SizedBox(height: 10),
                               TextButton(
                                 onPressed: _goToRegister,
-                                child: const Text("¿No tienes cuenta? Regístrate aquí"),
+                                child: Text(l10n.registerPrompt),
                               ),
                               TextButton(
                                 onPressed: () {
@@ -312,7 +308,7 @@ class _LoginPageState extends State<LoginPage> {
                                     (route) => false,
                                   );
                                 },
-                                child: const Text("⬅️ Volver al inicio"),
+                                child: Text(l10n.backHome),
                               ),
                             ],
                           ),
@@ -328,4 +324,11 @@ class _LoginPageState extends State<LoginPage> {
       ),
     );
   }
+}
+
+class _FeatureItem {
+  final IconData icon;
+  final String label;
+
+  const _FeatureItem(this.icon, this.label);
 }

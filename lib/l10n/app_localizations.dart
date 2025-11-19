@@ -1080,6 +1080,138 @@ abstract class AppLocalizations {
   /// In en_US, this message translates to:
   /// **'Cannot delete an accepted service.'**
   String get serviceDeleteBlockedMessage;
+
+  /// No description provided for @workerEditAccount.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Edit account'**
+  String get workerEditAccount;
+
+  /// No description provided for @workerActiveAccount.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Active account'**
+  String get workerActiveAccount;
+
+  /// No description provided for @workerInactiveAccount.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Inactive account'**
+  String get workerInactiveAccount;
+
+  /// No description provided for @workerHomeTitle.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Worker dashboard'**
+  String get workerHomeTitle;
+
+  /// No description provided for @workerNoResponses.
+  ///
+  /// In en_US, this message translates to:
+  /// **'You have no new responses.'**
+  String get workerNoResponses;
+
+  /// No description provided for @workerInvalidAmount.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Invalid amount'**
+  String get workerInvalidAmount;
+
+  /// No description provided for @workerOfferForService.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Offer for {title}'**
+  String workerOfferForService(Object title);
+
+  /// No description provided for @workerPriceProposed.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Proposed price'**
+  String get workerPriceProposed;
+
+  /// No description provided for @workerOfferButton.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Submit offer'**
+  String get workerOfferButton;
+
+  /// No description provided for @workerOfferTooltip.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Send a new offer'**
+  String get workerOfferTooltip;
+
+  /// No description provided for @workerOfferDisabled.
+  ///
+  /// In en_US, this message translates to:
+  /// **'This service no longer accepts new offers'**
+  String get workerOfferDisabled;
+
+  /// No description provided for @workerHiddenExpiredPipe.
+  ///
+  /// In en_US, this message translates to:
+  /// **'{count} expired requests were hidden.'**
+  String workerHiddenExpiredPipe(Object count);
+
+  /// No description provided for @workerNoOpportunities.
+  ///
+  /// In en_US, this message translates to:
+  /// **'No opportunities available in your area right now.'**
+  String get workerNoOpportunities;
+
+  /// No description provided for @workerNegotiationLabel.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Negotiation: {status}'**
+  String workerNegotiationLabel(Object status);
+
+  /// No description provided for @workerOfferSent.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Offer sent'**
+  String get workerOfferSent;
+
+  /// No description provided for @workerAccountLoadButton.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Load my account data'**
+  String get workerAccountLoadButton;
+
+  /// No description provided for @workerAccountUpdated.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Account data updated'**
+  String get workerAccountUpdated;
+
+  /// No description provided for @workerLoadError.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Could not load your account data.'**
+  String get workerLoadError;
+
+  /// No description provided for @workerClientOfferLabel.
+  ///
+  /// In en_US, this message translates to:
+  /// **'{client} offered {amount}'**
+  String workerClientOfferLabel(Object amount, Object client);
+
+  /// No description provided for @workerOpportunitiesTitle.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Available opportunities'**
+  String get workerOpportunitiesTitle;
+
+  /// No description provided for @optionalMessageLabel.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Message (optional)'**
+  String get optionalMessageLabel;
+
+  /// No description provided for @workerOfferError.
+  ///
+  /// In en_US, this message translates to:
+  /// **'Error placing offer: {message}'**
+  String workerOfferError(Object message);
 }
 
 class _AppLocalizationsDelegate

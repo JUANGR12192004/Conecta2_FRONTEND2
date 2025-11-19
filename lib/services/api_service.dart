@@ -9,7 +9,9 @@ class ApiService {
   // ==========================
   static String host = kIsWeb
       ? "http://localhost:8080"
-      : "http://localhost:8080";
+      : (defaultTargetPlatform == TargetPlatform.android
+      ? "http://10.0.2.2:8080"
+      : "http://localhost:8080");
   // Microservicio de pagos (pasarela). Se puede ajustar si corre en otro host/puerto.
   static String get paymentsHost {
     if (kIsWeb) {

@@ -231,5 +231,11 @@
     }
   },
   "serviceDeletedMessage": "Service deleted",
-  "serviceDeleteBlockedMessage": "Cannot delete an accepted service."
+  "serviceDeleteBlockedMessage": "Cannot delete an accepted service.",
+  "workerEditAccount": "Edit account",
+  "workerActiveAccount": "Active account",
+  "workerInactiveAccount": "Inactive account",
+  "workerHomeTitle": "Worker dashboard",
+  "workerNoResponses": "You have no new responses.",
+  "workerInvalidAmount": "Invalid amount"
 }

@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../services/locale_provider.dart';
+import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -10,15 +14,43 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   String? selectedRole; // "client" o "worker"
 
+  List<Color> _gradientColorsForRole() {
+    if (selectedRole == "worker") {
+      return const [Color(0xFF0B4E9E), Color(0xFF4C8DFF)];
+    }
+    if (selectedRole == "client") {
+      return const [Color(0xFF00796B), Color(0xFF00897B)];
+    }
+    return const [Color(0xFF00B59A), Color(0xFF0B8AD9)];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final localeProvider = context.watch<LocaleProvider>();
+    final localizations = AppLocalizations.of(context)!;
+    final gradientColors = _gradientColorsForRole();
 
     return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text(localizations.appTitle),
+        centerTitle: true,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: _CountrySelector(
+              provider: localeProvider,
+              tooltip: localizations.selectCountry,
+            ),
+          ),
+        ],
+      ),
       body: DecoratedBox(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF00B59A), Color(0xFF0B8AD9)],
+            colors: gradientColors,
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -26,53 +58,42 @@ class _HomePageState extends State<HomePage> {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 100, 20, 24),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 480),
+                constraints: const BoxConstraints(maxWidth: 520),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            color: Colors.white.withOpacity(0.12),
-                            child: Image.asset(
-                              "assets/LogoConecta2.png",
-                              height: 56,
-                              fit: BoxFit.contain,
-                            ),
-                          ),
-                        ),
-                        Chip(
-                          backgroundColor: Colors.white.withOpacity(0.12),
-                          label: const Text(
-                            "Pagos seguros · Identidad verificada",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ],
+                    Image.asset(
+                      "assets/LogoConecta2.png",
+                      height: 100,
                     ),
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 30),
                     Text(
-                      "Conecta rápido con\ntrabajadores de confianza",
-                      style: theme.textTheme.headlineLarge?.copyWith(color: Colors.white),
+                      localizations.welcome,
+                      textAlign: TextAlign.left,
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
                     Text(
-                      "Solicita oficios verificados, paga seguro y sigue tu servicio en tiempo real.",
-                      style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white70),
+                      localizations.subtitle,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: Colors.white.withOpacity(0.88),
+                          ),
                     ),
-                    const SizedBox(height: 26),
-                    _RoleCard(
-                      title: "Soy Cliente",
-                      subtitle: "Encuentra profesionales verificados y paga con total seguridad.",
-                      icon: Icons.verified_user,
-                      accent: Colors.white,
-                      onTap: () {
+                    const SizedBox(height: 24),
+                    Text(
+                      localizations.roleHint,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white70,
+                          ),
+                    ),
+                    const SizedBox(height: 18),
+                    ElevatedButton(
+                      onPressed: () {
                         setState(() => selectedRole = "client");
                         Navigator.pushNamed(
                           context,
@@ -80,14 +101,19 @@ class _HomePageState extends State<HomePage> {
                           arguments: {"role": "client"},
                         );
                       },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.teal.shade900,
+                        minimumSize: const Size(double.infinity, 52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      child: Text(localizations.clientButton),
                     ),
                     const SizedBox(height: 14),
-                    _RoleCard(
-                      title: "Soy Trabajador",
-                      subtitle: "Recibe solicitudes confiables y cobra de forma segura.",
-                      icon: Icons.handyman,
-                      accent: Colors.white70,
-                      onTap: () {
+                    ElevatedButton(
+                      onPressed: () {
                         setState(() => selectedRole = "worker");
                         Navigator.pushNamed(
                           context,
@@ -95,16 +121,65 @@ class _HomePageState extends State<HomePage> {
                           arguments: {"role": "worker"},
                         );
                       },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white70,
+                        foregroundColor: Colors.blue.shade900,
+                        minimumSize: const Size(double.infinity, 52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      child: Text(localizations.workerButton),
                     ),
-                    const SizedBox(height: 28),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: const [
-                        _Pill(text: "Pagos protegidos", icon: Icons.lock_outline),
-                        _Pill(text: "Identidad verificada", icon: Icons.verified),
-                        _Pill(text: "Soporte 24/7", icon: Icons.support_agent),
-                      ],
+                    const SizedBox(height: 32),
+                    Card(
+                      color: Colors.white.withOpacity(0.12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  localizations.currencyLabel,
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                                Text(
+                                  localeProvider.formatCurrency(1281.75),
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  localizations.dateLabel,
+                                  style: const TextStyle(color: Colors.white70),
+                                ),
+                                Text(
+                                  localeProvider.formatDate(DateTime.now()),
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              localizations.countryLabel(
+                                  localeProvider.selectedCountry.emoji,
+                                  localeProvider.selectedCountry.name),
+                              style: const TextStyle(color: Colors.white70),
+                              textAlign: TextAlign.right,
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -117,85 +192,44 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _RoleCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color accent;
-  final VoidCallback onTap;
-
-  const _RoleCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.accent,
-    required this.onTap,
+class _CountrySelector extends StatelessWidget {
+  const _CountrySelector({
+    required this.provider,
+    required this.tooltip,
   });
+
+  final LocaleProvider provider;
+  final String tooltip;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      elevation: 6,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: accent.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: theme.colorScheme.primary),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return PopupMenuButton<CountryOption>(
+      tooltip: tooltip,
+      iconSize: 40,
+      icon: CircleAvatar(
+        backgroundColor: Colors.white.withOpacity(0.15),
+        child: Text(
+          provider.selectedCountry.emoji,
+          style: const TextStyle(fontSize: 22),
+        ),
+      ),
+      onSelected: provider.updateCountry,
+      itemBuilder: (context) {
+        return provider.countries
+            .map(
+              (country) => PopupMenuItem<CountryOption>(
+                value: country,
+                child: Row(
                   children: [
-                    Text(title, style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 4),
-                    Text(subtitle, style: theme.textTheme.bodyMedium),
+                    Text(country.emoji, style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 12),
+                    Text(country.name),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: theme.colorScheme.primary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  final String text;
-  final IconData icon;
-  const _Pill({required this.text, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 18, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(text, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-        ],
-      ),
+            )
+            .toList();
+      },
     );
   }
 }

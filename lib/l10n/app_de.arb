@@ -231,5 +231,32 @@
     }
   },
   "serviceDeletedMessage": "Dienst gelöscht",
-  "serviceDeleteBlockedMessage": "Ein akzeptierter Dienst kann nicht gelöscht werden."
+  "serviceDeleteBlockedMessage": "Ein akzeptierter Dienst kann nicht gelöscht werden.",
+  "workerEditAccount": "Konto bearbeiten",
+  "workerActiveAccount": "Aktives Konto",
+  "workerInactiveAccount": "Inaktives Konto",
+  "workerHomeTitle": "Worker-Bereich",
+  "workerNoResponses": "Du hast keine neuen Antworten.",
+  "workerInvalidAmount": "Ungültiger Betrag",
+  "workerOfferForService": "Angebot für {title}",
+  "workerPriceProposed": "Vorgeschlagener Preis",
+  "workerOfferButton": "Angebot senden",
+  "workerOfferTooltip": "Neues Angebot senden",
+  "workerOfferDisabled": "Dieser Dienst akzeptiert keine neuen Angebote mehr",
+  "workerHiddenExpiredPipe": "{count} abgelaufene Anfragen wurden ausgeblendet.",
+  "workerNoOpportunities": "Derzeit gibt es keine Möglichkeiten in Ihrer Region.",
+  "workerNegotiationLabel": "Verhandlung: {status}",
+  "workerOfferSent": "Angebot gesendet",
+  "workerAccountLoadButton": "Meine Kontodaten laden",
+  "workerAccountUpdated": "Kontodaten aktualisiert",
+  "workerLoadError": "Kontodaten konnten nicht geladen werden.",
+  "workerClientOfferLabel": "{client} bot {amount}",
+  "workerOpportunitiesTitle": "Verfügbare Chancen",
+  "optionalMessageLabel": "Nachricht (optional)",
+  "workerOfferError": "Fehler beim Abgeben des Angebots: {message}",
+  "@workerOfferError": {
+    "placeholders": {
+      "message": {}
+    }
+  }
 }

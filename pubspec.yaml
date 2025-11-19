@@ -17,6 +17,9 @@ dependencies:
   google_maps_flutter_web: 0.5.12
   geolocator: ^14.0.2
   google_maps_flutter: 2.10.0
+  provider: ^6.0.6
+  shared_preferences: ^2.2.1
+  intl: ^0.20.2
 
 dev_dependencies:
   flutter_test:
@@ -25,6 +28,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  generate: true
   assets:
   - assets/LogoConecta2.png
 

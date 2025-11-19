@@ -1,4 +1,6 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
+
 import '../services/api_service.dart'; // <-- ajusta la ruta si es distinta
 import '../utils/categories.dart';
 
@@ -11,8 +13,6 @@ class RegisterWorkerPage extends StatefulWidget {
 
 class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
   final _formKey = GlobalKey<FormState>();
-
-  // Controllers
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passCtrl = TextEditingController();
@@ -28,8 +28,6 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
   bool _categoriesLoading = false;
   String? _categoriesError;
   String? _selectedCategory;
-
-  // Si en el futuro decides mapear errores por campo
   Map<String, String> fieldErrors = {};
 
   void _showSnack(String message, {Color? background}) {
@@ -43,9 +41,7 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
     );
   }
 
-  void _clearFieldErrors() {
-    setState(() => fieldErrors = {});
-  }
+  void _clearFieldErrors() => setState(() => fieldErrors = {});
 
   @override
   void initState() {
@@ -73,59 +69,57 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      final msg = e.toString().replaceFirst('Exception: ', '');
+      final msg = e.toString();
+      final l10n = AppLocalizations.of(context)!;
       final fallback = List<String>.from(kServiceCategoryLabels.keys);
       fallback.sort((a, b) => categoryDisplayLabel(a).compareTo(categoryDisplayLabel(b)));
       setState(() {
-        _categoriesLoading = false;
         _categories = fallback;
+        _categoriesLoading = false;
         if (!_categories.contains(_selectedCategory)) {
           _selectedCategory = null;
         }
         _categoriesError = fallback.isEmpty
-            ? msg
-            : "Categorias cargadas localmente. Detalle: $msg";
+            ? l10n.categoriesError(msg)
+            : l10n.categoriesFallback(msg);
       });
       if (fallback.isEmpty) {
-        _showSnack("No se pudieron cargar las categorias: $msg");
+        _showSnack(l10n.categoriesError(msg));
       } else {
-        _showSnack(
-          "No se pudieron cargar las categorias desde el servidor. "
-          "Se usarán valores locales.",
-        );
+        _showSnack(l10n.categoriesLocalFallback);
       }
     }
   }
 
   Future<void> _register() async {
+    final l10n = AppLocalizations.of(context)!;
     _clearFieldErrors();
 
     if (!_formKey.currentState!.validate()) return;
     if (!_termsAccepted) {
-      _showSnack("Debes aceptar los términos y condiciones.");
+      _showSnack(l10n.termsError);
       return;
     }
     if (_passCtrl.text != _confirmCtrl.text) {
-      _showSnack("Las contraseñas no coinciden.");
+      _showSnack(l10n.passwordsMismatch);
       return;
     }
-
     if (_categoriesLoading) {
-      _showSnack("Espera a que carguen las categorias.");
+      _showSnack(l10n.categoriesLoading);
       return;
     }
     if (_categories.isEmpty) {
-      _showSnack("No hay categorias disponibles.");
+      _showSnack(l10n.categoriesUnavailable);
       return;
     }
     if (_selectedCategory == null || _selectedCategory!.isEmpty) {
-      _showSnack("Selecciona una categoria.");
+      _showSnack(l10n.selectCategoryPrompt);
       return;
     }
 
     final categoriaEnum = normalizeCategoryValue(_selectedCategory);
     if (categoriaEnum.isEmpty) {
-      _showSnack("Categoria seleccionada invalida.");
+      _showSnack(l10n.categoryInvalid);
       return;
     }
 
@@ -144,31 +138,18 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
         confirmarContrasena: _confirmCtrl.text,
       );
 
-      // Mensaje del backend o mensaje por defecto
-      final msg = (resp['mensaje'] as String?) ??
-          "Registro recibido. Revisa tu correo para activar la cuenta ✅";
-
+      final msg = (resp['mensaje'] as String?) ?? l10n.registrationReceived;
       _showSnack(msg, background: Colors.green);
-
-      // Pequeña pausa para que vea el SnackBar
       await Future.delayed(const Duration(milliseconds: 800));
       if (!mounted) return;
-
-      // Ir a login con el rol preseleccionado
-      Navigator.pushReplacementNamed(
-        context,
-        "/login",
-        arguments: {"role": "worker"},
-      );
+      Navigator.pushReplacementNamed(context, "/login", arguments: {"role": "worker"});
     } catch (e) {
-      // ApiService lanza Exception con mensaje amigable (p.ej. 400/401/403)
       _showSnack(e.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  // Widget de error por campo (si luego quieres mapearlos)
   Widget _fieldError(String key) {
     final msg = fieldErrors[key];
     if (msg == null || msg.isEmpty) return const SizedBox.shrink();
@@ -190,7 +171,7 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Paleta estilo trabajador (azul) pero con mismos patrones de UI del cliente
+    final l10n = AppLocalizations.of(context)!;
     const Color primary = Color(0xFF1E88E5);
     const Color secondary = Color(0xFF64B5F6);
 
@@ -220,109 +201,103 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
                         children: [
                           const Icon(Icons.work, size: 56, color: primary),
                           const SizedBox(height: 12),
-                          const Text(
-                            "Registro de trabajador",
+                          Text(
+                            l10n.registerTitleWorker,
                             textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
-                          const SizedBox(height: 24),
-
-                          // Nombre completo
+                          const SizedBox(height: 8),
+                          Text(
+                            l10n.registerSubtitleWorker,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 20),
                           TextFormField(
                             controller: _nameCtrl,
-                            decoration: const InputDecoration(
-                              labelText: "Nombre completo",
-                              prefixIcon: Icon(Icons.person),
+                            decoration: InputDecoration(
+                              labelText: l10n.nameLabel,
+                              prefixIcon: const Icon(Icons.person),
                             ),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? "Ingresa tu nombre" : null,
+                            validator: (value) {
+                              if (value == null || value.trim().length < 3) {
+                                return l10n.nameMinError;
+                              }
+                              return null;
+                            },
                           ),
                           _fieldError("nombreCompleto"),
-                          const SizedBox(height: 14),
-
-                          // Correo electrónico
+                          const SizedBox(height: 12),
                           TextFormField(
                             controller: _emailCtrl,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: const InputDecoration(
-                              labelText: "Correo electrónico",
-                              prefixIcon: Icon(Icons.email),
+                            decoration: InputDecoration(
+                              labelText: l10n.emailLabel,
+                              prefixIcon: const Icon(Icons.email),
                             ),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) return "Ingresa tu correo";
-                              final rx = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-                              if (!rx.hasMatch(v.trim())) return "Correo inválido";
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) return l10n.emailEmptyError;
+                              final regex = RegExp(r"^[^@]+@[^@]+\.[^@]+");
+                              if (!regex.hasMatch(value)) return l10n.emailInvalidError;
                               return null;
                             },
                           ),
                           _fieldError("correo"),
-                          const SizedBox(height: 14),
-
-                          // Contraseña
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _phoneCtrl,
+                            decoration: InputDecoration(
+                              labelText: l10n.phoneLabel,
+                              prefixIcon: const Icon(Icons.phone),
+                            ),
+                            keyboardType: TextInputType.phone,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) return l10n.phoneEmptyError;
+                              if (value.length < 7) return l10n.phoneInvalidError;
+                              return null;
+                            },
+                          ),
+                          _fieldError("celular"),
+                          const SizedBox(height: 12),
                           TextFormField(
                             controller: _passCtrl,
                             obscureText: _obscurePass,
                             decoration: InputDecoration(
-                              labelText: "Contraseña",
+                              labelText: l10n.passwordLabel,
                               prefixIcon: const Icon(Icons.lock),
                               suffixIcon: IconButton(
-                                onPressed: () => setState(() => _obscurePass = !_obscurePass),
                                 icon: Icon(_obscurePass ? Icons.visibility : Icons.visibility_off),
+                                onPressed: () => setState(() => _obscurePass = !_obscurePass),
                               ),
                             ),
-                            validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return "Ingresa tu contraseña";
-                              }
-                              if (v.length < 8) {
-                                return "La contraseña debe tener al menos 8 caracteres";
-                              }
-                              final rx = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).+$');
-                              if (!rx.hasMatch(v)) {
-                                return "Debe incluir mayúsculas, minúsculas, números y un carácter especial";
-                              }
+                            validator: (value) {
+                              if (value == null || value.length < 6) return l10n.passwordMinError;
                               return null;
                             },
                           ),
                           _fieldError("contrasena"),
-                          const SizedBox(height: 14),
-
-                          // Confirmar contraseña
+                          const SizedBox(height: 12),
                           TextFormField(
                             controller: _confirmCtrl,
                             obscureText: _obscureConfirm,
                             decoration: InputDecoration(
-                              labelText: "Confirmar contraseña",
+                              labelText: l10n.confirmPasswordLabel,
                               prefixIcon: const Icon(Icons.lock_outline),
                               suffixIcon: IconButton(
-                                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
                                 icon: Icon(_obscureConfirm ? Icons.visibility : Icons.visibility_off),
+                                onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
                               ),
                             ),
-                            validator: (v) {
-                              if (v == null || v.isEmpty) return "Confirma tu contraseña";
-                              if (v != _passCtrl.text) return "Las contraseñas no coinciden";
+                            validator: (value) {
+                              if (value == null || value.isEmpty) return l10n.confirmPasswordError;
                               return null;
                             },
                           ),
                           _fieldError("confirmarContrasena"),
                           const SizedBox(height: 14),
-
-                          // Número de celular
-                          TextFormField(
-                            controller: _phoneCtrl,
-                            keyboardType: TextInputType.phone,
-                            decoration: const InputDecoration(
-                              labelText: "Número de celular",
-                              prefixIcon: Icon(Icons.phone),
-                            ),
-                            validator: (v) =>
-                                (v == null || v.trim().isEmpty) ? "Ingresa tu número de celular" : null,
-                          ),
-                          _fieldError("celular"),
-                          const SizedBox(height: 14),
-
-                          // Categoria de servicio
                           DropdownButtonFormField<String>(
                             value: _selectedCategory,
                             items: _categories
@@ -340,14 +315,14 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
                                           ? null
                                           : normalizeCategoryValue(value),
                                     ),
-                            decoration: const InputDecoration(
-                              labelText: "Categoria de servicio",
-                              prefixIcon: Icon(Icons.build),
+                            decoration: InputDecoration(
+                              labelText: l10n.serviceCategoryLabel,
+                              prefixIcon: const Icon(Icons.build),
                             ),
                             validator: (value) {
-                              if (_categoriesLoading) return "Categorias cargando...";
-                              if (_categories.isEmpty) return "No hay categorias disponibles";
-                              if (value == null || value.isEmpty) return "Selecciona una categoria";
+                              if (_categoriesLoading) return l10n.categoriesLoading;
+                              if (_categories.isEmpty) return l10n.categoriesUnavailable;
+                              if (value == null || value.isEmpty) return l10n.selectCategoryPrompt;
                               return null;
                             },
                           ),
@@ -366,22 +341,18 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
                             ),
                           _fieldError("categoriaServicio"),
                           const SizedBox(height: 10),
-
-                          // Términos
                           Row(
                             children: [
                               Checkbox(
                                 value: _termsAccepted,
                                 onChanged: (v) => setState(() => _termsAccepted = v ?? false),
                               ),
-                              const Expanded(
-                                child: Text("Acepto términos y condiciones"),
+                              Expanded(
+                                child: Text(l10n.termsAgreement),
                               ),
                             ],
                           ),
                           const SizedBox(height: 8),
-
-                          // Botón registrar
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
@@ -402,12 +373,10 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Text("Registrarse"),
+                                  : Text(l10n.registerButtonWorker),
                             ),
                           ),
                           const SizedBox(height: 10),
-
-                          // Botón cancelar
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton(
@@ -418,16 +387,14 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const Text("Cancelar"),
+                              child: Text(l10n.cancelButton),
                             ),
                           ),
                           const SizedBox(height: 10),
-
-                          // Ya tienes cuenta
                           Wrap(
                             alignment: WrapAlignment.center,
                             children: [
-                              const Text("¿Ya tienes cuenta? "),
+                              Text(l10n.haveAccountCarryOn),
                               InkWell(
                                 onTap: _loading
                                     ? null
@@ -436,9 +403,9 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
                                           "/login",
                                           arguments: {"role": "worker"},
                                         ),
-                                child: const Text(
-                                  "Inicia sesión",
-                                  style: TextStyle(
+                                child: Text(
+                                  l10n.loginHere,
+                                  style: const TextStyle(
                                     color: primary,
                                     fontWeight: FontWeight.bold,
                                     decoration: TextDecoration.underline,
@@ -447,11 +414,9 @@ class _RegisterWorkerPageState extends State<RegisterWorkerPage> {
                               ),
                             ],
                           ),
-
-                          // Volver al inicio (cambiar rol)
                           TextButton(
                             onPressed: () => Navigator.pushNamedAndRemoveUntil(context, "/", (r) => false),
-                            child: const Text("⬅️ Volver al inicio"),
+                            child: Text(l10n.backHome),
                           ),
                         ],
                       ),

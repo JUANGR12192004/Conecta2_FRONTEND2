@@ -8,6 +8,7 @@ import '../widgets/profile_popover.dart';
 import '../utils/categories.dart';
 import '../widgets/current_location_map.dart';
 import '../widgets/payment_checkout_helper.dart';
+import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
 
 const Color _workerPrimary = Color(0xFF1E88E5);
 const Color _workerSecondary = Color(0xFF64B5F6);
@@ -26,6 +27,7 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
   Map<String, dynamic>? _profile;
   bool _loading = false;
   String? _error;
+  AppLocalizations get _l10n => AppLocalizations.of(context)!;
   bool _initialized = false;
   Map<String, dynamic>? _initialArgs;
   // Oportunidades
@@ -68,13 +70,14 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
   String _participantLabel(dynamic raw) {
     final value = raw?.toString().trim();
     if (value == null || value.isEmpty) return '';
+    final l10n = _l10n;
     switch (value.toUpperCase()) {
       case 'CLIENTE':
       case 'CUSTOMER':
-        return 'Cliente';
+        return l10n.clientLabel;
       case 'TRABAJADOR':
       case 'WORKER':
-        return 'Trabajador';
+        return l10n.workerLabel;
       default:
         return value[0].toUpperCase() + value.substring(1).toLowerCase();
     }
@@ -83,22 +86,23 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
   String _negotiationStateLabel(dynamic raw) {
     final value = raw?.toString().trim();
     if (value == null || value.isEmpty) return '';
+    final l10n = _l10n;
     switch (value.toUpperCase()) {
       case 'EN_NEGOCIACION':
-        return 'En negociación';
+        return l10n.negotiationInNegotiation;
       case 'EN_CURSO':
       case 'EN_PROCESO':
-        return 'En curso';
+        return l10n.negotiationInProgress;
       case 'ACEPTADA':
-        return 'Aceptada';
+        return l10n.negotiationAccepted;
       case 'PENDIENTE_DE_PAGO':
-        return 'Pago pendiente';
+        return l10n.serviceStatePaymentPending;
       case 'RECHAZADA':
-        return 'Rechazada';
+        return l10n.negotiationRejected;
       case 'CERRADA':
-        return 'Cerrada';
+        return l10n.negotiationClosed;
       case 'PENDIENTE':
-        return 'Pendiente';
+        return l10n.negotiationPending;
       default:
         return value[0].toUpperCase() + value.substring(1).toLowerCase();
     }
@@ -135,21 +139,20 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
 
   String _serviceStateLabel(dynamic raw) {
     final value = raw?.toString().trim() ?? '';
-    if (value.isEmpty) return 'Pendiente';
+    if (value.isEmpty) return _l10n.serviceStatePending;
     switch (value.toUpperCase()) {
       case 'PENDIENTE':
-        return 'Pendiente';
+        return _l10n.serviceStatePending;
       case 'PENDIENTE_PAGO':
-        return 'Pago pendiente';
+        return _l10n.serviceStatePaymentPending;
       case 'ASIGNADO':
-        return 'En curso';
       case 'EN_PROCESO':
       case 'EN_CURSO':
-        return 'En curso';
+        return _l10n.serviceStateInProgress;
       case 'FINALIZADO':
-        return 'Finalizado';
+        return _l10n.serviceStateFinished;
       case 'CANCELADO':
-        return 'Expirado';
+        return _l10n.serviceStateExpired;
       default:
         return value[0].toUpperCase() + value.substring(1).toLowerCase();
     }
@@ -203,9 +206,14 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
   }
 
   bool _shouldHideService(Map<String, dynamic> service) {
-    final estadoRaw = (service['estado'] ?? service['estadoServicio'] ?? service['status'] ?? '').toString();
+    final estadoRaw = (service['estado'] ??
+            service['estadoServicio'] ??
+            service['status'] ??
+            '')
+        .toString();
     if (estadoRaw.toUpperCase() == 'CANCELADO') return true;
-    final date = _parseServiceDate(service['fechaEstimada'] ?? service['fecha']);
+    final date =
+        _parseServiceDate(service['fechaEstimada'] ?? service['fecha']);
     return _isDateExpired(date);
   }
 
@@ -301,13 +309,13 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
     final area = _currentArea();
     final categoria = normalizeCategoryValue(area);
     if (categoria.isEmpty) {
-    if (mounted) {
-      setState(() {
-        _opportunities = [];
-        _opError = null;
-        _hiddenExpiredOpportunities = 0;
-      });
-    }
+      if (mounted) {
+        setState(() {
+          _opportunities = [];
+          _opError = null;
+          _hiddenExpiredOpportunities = 0;
+        });
+      }
       return;
     }
 
@@ -318,7 +326,8 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
     }
 
     try {
-      final list = await ApiService.getPublicAvailableServices(categoria: categoria);
+      final list =
+          await ApiService.getPublicAvailableServices(categoria: categoria);
       if (!mounted) return;
       int expiredCount = 0;
       final filtered = <Map<String, dynamic>>[];
@@ -362,7 +371,9 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
       // Si alguna oferta aparece como ACEPTADA por el cliente,
       // marcar el servicio correspondiente como ASIGNADO solo para este trabajador.
       for (final o in list) {
-        final estado = (o['estadoNegociacion'] ?? o['estado'] ?? '').toString().toUpperCase();
+        final estado = (o['estadoNegociacion'] ?? o['estado'] ?? '')
+            .toString()
+            .toUpperCase();
         if (estado == 'ACEPTADA' || estado == 'PENDIENTE_DE_PAGO') {
           final sid = _serviceIdFromOffer(o);
           if (sid != null) {
@@ -391,12 +402,13 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
   }
 
   Future<void> _openAccountManager() async {
+    final l10n = _l10n;
     final id = _workerId;
     if (id == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No fue posible cargar los datos de tu cuenta.'),
+        SnackBar(
+          content: Text(l10n.workerLoadError),
           behavior: SnackBarBehavior.floating,
           backgroundColor: Colors.red,
         ),
@@ -419,8 +431,8 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
     if (updated != null && mounted) {
       setState(() => _profile = updated);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Datos de cuenta actualizados'),
+        SnackBar(
+          content: Text(l10n.workerAccountUpdated),
           behavior: SnackBarBehavior.floating,
           backgroundColor: _workerPrimary,
         ),
@@ -449,6 +461,7 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
     final priceCtrl = TextEditingController();
     final noteCtrl = TextEditingController();
     bool sending = false;
+    final l10n = _l10n;
 
     if (!mounted) return;
     await showModalBottomSheet<void>(
@@ -478,14 +491,18 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
                   ),
                 ),
                 const SizedBox(height: 12),
-                Text('Ofertar para: ${titulo.isEmpty ? 'Servicio' : titulo}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                Text(
+                    l10n.workerOfferForService(
+                        titulo.isEmpty ? l10n.serviceDefaultTitle : titulo),
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
                 TextField(
                   controller: priceCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(
-                    labelText: 'Precio propuesto',
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: l10n.workerPriceProposed,
                     prefixIcon: Icon(Icons.attach_money),
                   ),
                 ),
@@ -493,8 +510,8 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
                 TextField(
                   controller: noteCtrl,
                   maxLines: 2,
-                  decoration: const InputDecoration(
-                    labelText: 'Mensaje (opcional)',
+                  decoration: InputDecoration(
+                    labelText: l10n.optionalMessageLabel,
                     prefixIcon: Icon(Icons.message_outlined),
                   ),
                 ),
@@ -504,7 +521,7 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
                     Expanded(
                       child: OutlinedButton(
                         onPressed: sending ? null : () => Navigator.pop(ctx),
-                        child: const Text('Cancelar'),
+                        child: Text(l10n.cancelButton),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -518,12 +535,13 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
                             ? null
                             : () async {
                                 final messenger = ScaffoldMessenger.of(context);
-                                final raw = priceCtrl.text.trim().replaceAll(',', '.');
+                                final raw =
+                                    priceCtrl.text.trim().replaceAll(',', '.');
                                 final price = double.tryParse(raw);
                                 if (price == null || price <= 0) {
                                   messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Ingresa un precio válido'),
+                                    SnackBar(
+                                      content: Text(l10n.enterValidAmount),
                                       behavior: SnackBarBehavior.floating,
                                       backgroundColor: Colors.red,
                                     ),
@@ -542,8 +560,8 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
                                   Navigator.pop(ctx);
                                   if (!mounted) return;
                                   messenger.showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Oferta enviada âœ…'),
+                                    SnackBar(
+                                      content: Text(l10n.workerOfferSent),
                                       behavior: SnackBarBehavior.floating,
                                       backgroundColor: _workerPrimary,
                                     ),
@@ -552,7 +570,8 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
                                   if (!mounted) return;
                                   messenger.showSnackBar(
                                     SnackBar(
-                                      content: Text('Error al ofertar: $e'),
+                                      content: Text(
+                                          l10n.workerOfferError(e.toString())),
                                       behavior: SnackBarBehavior.floating,
                                       backgroundColor: Colors.red,
                                     ),
@@ -565,9 +584,10 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
                             ? const SizedBox(
                                 height: 18,
                                 width: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
                               )
-                            : const Text('Enviar oferta'),
+                            : Text(l10n.workerOfferButton),
                       ),
                     ),
                   ],
@@ -581,6 +601,7 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
   }
 
   Future<void> _showProfileMenu() async {
+    final l10n = _l10n;
     final email = _currentEmail();
     final name = _currentName();
     final result = await showDialog<String>(
@@ -588,9 +609,11 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
       barrierDismissible: true,
       builder: (_) => ProfilePopover(
         name: name,
-        email: email.isNotEmpty ? email : 'Mi cuenta',
+        email: email.isNotEmpty ? email : l10n.myAccount,
         initialLetter: _initialLetter(),
         accentColor: _workerPrimary,
+        manageLabel: l10n.manageAccountLabel,
+        logoutLabel: l10n.logoutLabel,
       ),
     );
 
@@ -617,12 +640,12 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
   }
 
   Widget _buildProfileCard() {
+    final l10n = _l10n;
     final nombre = _currentName();
     final correo = _currentEmail();
     final celular = _currentPhone();
     final area = _currentArea();
-    final rawActive =
-        (_profile != null ? _profile!['activo'] : null) ??
+    final rawActive = (_profile != null ? _profile!['activo'] : null) ??
         (_initialArgs != null ? _initialArgs!['activo'] : null);
     final activo =
         rawActive != null && rawActive.toString().toLowerCase() == 'true';
@@ -694,9 +717,11 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
                     labelStyle: const TextStyle(color: _workerPrimary),
                   ),
                 Chip(
-                  label: Text(activo ? 'Cuenta activa' : 'Cuenta inactiva'),
-                  backgroundColor: (activo ? Colors.green : Colors.orange)
-                      .withOpacity(0.15),
+                  label: Text(activo
+                      ? l10n.workerActiveAccount
+                      : l10n.workerInactiveAccount),
+                  backgroundColor:
+                      (activo ? Colors.green : Colors.orange).withOpacity(0.15),
                   labelStyle: TextStyle(
                     color: activo ? Colors.green[800] : Colors.orange[700],
                     fontWeight: FontWeight.w600,
@@ -712,6 +737,7 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = _l10n;
     final body = RefreshIndicator(
       onRefresh: _fetchProfile,
       child: ListView(
@@ -731,7 +757,7 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
                 trailing: IconButton(
                   icon: const Icon(Icons.refresh, color: Colors.red),
                   onPressed: _fetchProfile,
-                  tooltip: 'Reintentar',
+                  tooltip: _l10n.refreshTooltip,
                 ),
               ),
             ),
@@ -739,12 +765,12 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
             OutlinedButton.icon(
               onPressed: _fetchProfile,
               icon: const Icon(Icons.person_search_outlined),
-              label: const Text('Cargar datos de mi cuenta'),
+              label: Text(_l10n.workerAccountLoadButton),
             ),
           const SizedBox(height: 12),
           _buildOpportunitiesCard(),
-const SizedBox(height: 12),
-_buildMapCard(),
+          const SizedBox(height: 12),
+          _buildMapCard(),
         ],
       ),
     );
@@ -754,11 +780,45 @@ _buildMapCard(),
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        title: const Text(
-          'WorkifyTrabajador',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w800),
+        title: Text(
+          l10n.workerHomeTitle,
+          style:
+              const TextStyle(color: Colors.black, fontWeight: FontWeight.w800),
         ),
-        actions: [ IconButton( icon: Stack( clipBehavior: Clip.none, children: [ const Icon(Icons.notifications_outlined, color: Colors.black87), if (_incomingOffers.isNotEmpty) Positioned(right: -2, top: -2, child: Container(padding: const EdgeInsets.symmetric(horizontal:5, vertical:2), decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(10)), child: Text(_incomingOffers.length.toString(), style: const TextStyle(color: Colors.white, fontSize: 10)),),), ], ), tooltip: 'Notificaciones', onPressed: _openWorkerNotifications, ), IconButton( icon: const Icon(Icons.refresh_outlined, color: Colors.black87), tooltip: 'Actualizar', onPressed: _fetchProfile, ),
+        actions: [
+          IconButton(
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.notifications_outlined, color: Colors.black87),
+                if (_incomingOffers.isNotEmpty)
+                  Positioned(
+                    right: -2,
+                    top: -2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        _incomingOffers.length.toString(),
+                        style:
+                            const TextStyle(color: Colors.white, fontSize: 10),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            tooltip: l10n.notificationsTooltip,
+            onPressed: _openWorkerNotifications,
+          ),
+          IconButton(
+            icon: const Icon(Icons.refresh_outlined, color: Colors.black87),
+            tooltip: l10n.refreshTooltip,
+            onPressed: _fetchProfile,
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 14),
             child: GestureDetector(
@@ -775,6 +835,7 @@ _buildMapCard(),
   }
 
   Future<void> _openWorkerNotifications() async {
+    final l10n = _l10n;
     await _fetchIncomingOffers();
     if (!mounted) return;
     await showModalBottomSheet<void>(
@@ -797,7 +858,7 @@ _buildMapCard(),
               if (upper == 'COUNTER') {
                 final counterMonto = monto;
                 if (counterMonto == null || counterMonto <= 0) {
-                  throw Exception('Monto inválido');
+                  throw Exception(l10n.workerInvalidAmount);
                 }
                 await ApiService.workerCounterOffer(
                   offerId: offerId,
@@ -827,15 +888,15 @@ _buildMapCard(),
                   : upper == 'REJECT'
                       ? Colors.red
                       : _workerPrimary;
-              final text = upper == 'ACCEPT'
-                  ? 'Oferta aceptada'
+              final message = upper == 'ACCEPT'
+                  ? l10n.offerAcceptedMessage
                   : upper == 'REJECT'
-                      ? 'Oferta rechazada'
-                      : 'Contraoferta enviada';
+                      ? l10n.offerRejectedMessage
+                      : l10n.counterofferSent;
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text(text),
+                  content: Text(message),
                   behavior: SnackBarBehavior.floating,
                   backgroundColor: color,
                 ),
@@ -851,7 +912,7 @@ _buildMapCard(),
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Error: $e'),
+                  content: Text(l10n.errorMessage(e)),
                   behavior: SnackBarBehavior.floating,
                   backgroundColor: Colors.red,
                 ),
@@ -868,16 +929,17 @@ _buildMapCard(),
               builder: (_) => StatefulBuilder(
                 builder: (dialogCtx, setDialogState) {
                   return AlertDialog(
-                    title: const Text('Enviar contraoferta'),
+                    title: Text(l10n.counterofferTitle),
                     content: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         TextField(
                           controller: priceCtrl,
                           autofocus: true,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: const InputDecoration(
-                            labelText: 'Monto',
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          decoration: InputDecoration(
+                            labelText: l10n.counterofferPriceLabel,
                             prefixIcon: Icon(Icons.attach_money),
                           ),
                         ),
@@ -885,8 +947,8 @@ _buildMapCard(),
                         TextField(
                           controller: noteCtrl,
                           maxLines: 2,
-                          decoration: const InputDecoration(
-                            labelText: 'Mensaje (opcional)',
+                          decoration: InputDecoration(
+                            labelText: l10n.counterofferNoteLabel,
                             prefixIcon: Icon(Icons.message_outlined),
                           ),
                         ),
@@ -897,7 +959,8 @@ _buildMapCard(),
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 errorText!,
-                                style: const TextStyle(color: Colors.red, fontSize: 12),
+                                style: const TextStyle(
+                                    color: Colors.red, fontSize: 12),
                               ),
                             ),
                           ),
@@ -906,14 +969,16 @@ _buildMapCard(),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(dialogCtx),
-                        child: const Text('Cancelar'),
+                        child: Text(l10n.cancelButton),
                       ),
                       TextButton(
                         onPressed: () {
-                          final raw = priceCtrl.text.trim().replaceAll(',', '.');
+                          final raw =
+                              priceCtrl.text.trim().replaceAll(',', '.');
                           final value = double.tryParse(raw);
                           if (value == null || value <= 0) {
-                            setDialogState(() => errorText = 'Ingresa un monto válido');
+                            setDialogState(
+                                () => errorText = l10n.enterValidAmount);
                             return;
                           }
                           final note = noteCtrl.text.trim();
@@ -922,7 +987,7 @@ _buildMapCard(),
                             if (note.isNotEmpty) "mensaje": note,
                           });
                         },
-                        child: const Text('Enviar'),
+                        child: Text(l10n.sendButton),
                       ),
                     ],
                   );
@@ -951,20 +1016,31 @@ _buildMapCard(),
                 Container(
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(color: Colors.black26, borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(8)),
                 ),
                 const SizedBox(height: 12),
-                const Text('Notificaciones', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                Text(
+                  l10n.notificationsTitle,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w800),
+                ),
                 const SizedBox(height: 8),
                 if (_inOffersLoading && _incomingOffers.isEmpty)
-                  const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator()))
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
                 else if (_inOffersError != null)
                   Material(
                     color: Colors.red.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(12),
                     child: ListTile(
-                      leading: const Icon(Icons.error_outline, color: Colors.red),
-                      title: Text('' + _inOffersError.toString(), style: const TextStyle(color: Colors.red)),
+                      leading:
+                          const Icon(Icons.error_outline, color: Colors.red),
+                      title: Text('' + _inOffersError.toString(),
+                          style: const TextStyle(color: Colors.red)),
                       trailing: IconButton(
                         icon: const Icon(Icons.refresh, color: Colors.red),
                         onPressed: _fetchIncomingOffers,
@@ -972,28 +1048,44 @@ _buildMapCard(),
                     ),
                   )
                 else if (_incomingOffers.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Text('No tienes nuevas respuestas.', style: TextStyle(color: Colors.black54)),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      l10n.workerNoResponses,
+                      style: const TextStyle(color: Colors.black54),
+                    ),
                   )
                 else
                   Flexible(
                     child: ListView.separated(
                       shrinkWrap: true,
-                      itemCount: _incomingOffers.length,
                       separatorBuilder: (_, __) => const Divider(height: 16),
+                      itemCount: _incomingOffers.length,
                       itemBuilder: (context, i) {
                         final o = _incomingOffers[i];
-                        final client = (o['clientName'] ?? 'Cliente').toString();
-                        final estadoRaw = (o['estadoNegociacion'] ?? o['estado'] ?? '').toString();
+                        final client =
+                            (o['clientName'] ?? 'Cliente').toString();
+                        final estadoRaw =
+                            (o['estadoNegociacion'] ?? o['estado'] ?? '')
+                                .toString();
                         final estado = _negotiationStateLabel(estadoRaw);
-                        final turnoRaw = o['requiereRespuestaDe'] ?? o['turno'] ?? o['pendingFor'];
+                        final turnoRaw = o['requiereRespuestaDe'] ??
+                            o['turno'] ??
+                            o['pendingFor'];
                         final turno = _participantLabel(turnoRaw);
-                        final ultimo = _participantLabel(o['ultimoEmisor'] ?? o['lastActor']);
-                        final serviceTitle = (o['serviceTitle'] ?? o['tituloServicio'] ?? '').toString();
-                        final montoActual = _asDouble(o['monto'] ?? o['precio'] ?? o['montoActual'] ?? o['montoFinal']);
-                        final montoCliente = _asDouble(o['montoCliente'] ?? o['precioCliente']);
-                        final montoTrab = _asDouble(o['montoTrabajador'] ?? o['precioTrabajador']);
+                        final ultimo = _participantLabel(
+                            o['ultimoEmisor'] ?? o['lastActor']);
+                        final serviceTitle =
+                            (o['serviceTitle'] ?? o['tituloServicio'] ?? '')
+                                .toString();
+                        final montoActual = _asDouble(o['monto'] ??
+                            o['precio'] ??
+                            o['montoActual'] ??
+                            o['montoFinal']);
+                        final montoCliente =
+                            _asDouble(o['montoCliente'] ?? o['precioCliente']);
+                        final montoTrab = _asDouble(
+                            o['montoTrabajador'] ?? o['precioTrabajador']);
                         final offerId = () {
                           final v = o['id'];
                           if (v is int) return v;
@@ -1001,40 +1093,65 @@ _buildMapCard(),
                         }();
                         final serviceId = _serviceIdFromOffer(o);
                         final subtitleLines = <String>[
-                          if (serviceTitle.isNotEmpty) 'Servicio: ' + serviceTitle,
-                          if (estado.isNotEmpty) 'Estado: ' + estado,
-                          if (turno.isNotEmpty) 'Turno: ' + turno,
-                          if (ultimo.isNotEmpty) '?ltima oferta: ' + ultimo,
-                          if (montoActual != null) 'Monto vigente: ' + _formatCurrency(montoActual),
-                          if (montoCliente != null) 'Cliente ofert?: ' + _formatCurrency(montoCliente),
-                          if (montoTrab != null) 'Tu oferta: ' + _formatCurrency(montoTrab),
+                          if (serviceTitle.isNotEmpty)
+                            l10n.serviceLabel(serviceTitle),
+                          if (estado.isNotEmpty) l10n.serviceStateLabel(estado),
+                          if (turno.isNotEmpty) l10n.serviceTurnLabel(turno),
+                          if (ultimo.isNotEmpty) l10n.lastOfferLabel(ultimo),
+                          if (montoActual != null)
+                            l10n.currentAmountLabel(
+                                _formatCurrency(montoActual)),
+                          if (montoCliente != null)
+                            l10n.workerClientOfferLabel(
+                                client, _formatCurrency(montoCliente)),
+                          if (montoTrab != null)
+                            l10n.clientOfferLabel(_formatCurrency(montoTrab)),
                         ];
                         final subtitleWidget = subtitleLines.isEmpty
                             ? null
-                            : Text(subtitleLines.join('\n'));
+                            : Text(subtitleLines.join('\\n'));
                         final estadoNormalized = estadoRaw.toUpperCase();
-                        final canRespond = offerId > 0 && (estadoNormalized.isEmpty || estadoNormalized == 'EN_NEGOCIACION') && _isWorkerTurn(turnoRaw);
+                        final canRespond = offerId > 0 &&
+                            (estadoNormalized.isEmpty ||
+                                estadoNormalized == 'EN_NEGOCIACION') &&
+                            _isWorkerTurn(turnoRaw);
                         return ListTile(
-                          leading: const CircleAvatar(child: Icon(Icons.campaign_outlined)),
+                          leading: const CircleAvatar(
+                              child: Icon(Icons.campaign_outlined)),
                           title: Text(client),
                           subtitle: subtitleWidget,
-                          trailing: Wrap(
-                            spacing: 8,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                tooltip: 'Aceptar',
-                                icon: const Icon(Icons.check_circle, color: Colors.green),
-                                onPressed: canRespond ? () => respond(offerId: offerId, action: 'ACCEPT', serviceId: serviceId) : null,
+                                tooltip: l10n.acceptTooltip,
+                                icon: const Icon(Icons.check_circle_outline,
+                                    color: Colors.green),
+                                onPressed: canRespond
+                                    ? () => respond(
+                                        offerId: offerId,
+                                        action: 'ACCEPT',
+                                        serviceId: serviceId)
+                                    : null,
                               ),
                               IconButton(
-                                tooltip: 'Rechazar',
-                                icon: const Icon(Icons.cancel, color: Colors.red),
-                                onPressed: canRespond ? () => respond(offerId: offerId, action: 'REJECT', serviceId: serviceId) : null,
+                                tooltip: l10n.rejectTooltip,
+                                icon:
+                                    const Icon(Icons.cancel, color: Colors.red),
+                                onPressed: canRespond
+                                    ? () => respond(
+                                        offerId: offerId,
+                                        action: 'REJECT',
+                                        serviceId: serviceId)
+                                    : null,
                               ),
                               IconButton(
-                                tooltip: 'Contraoferta',
-                                icon: const Icon(Icons.swap_horiz, color: Colors.orange),
-                                onPressed: canRespond ? () => doCounter(offerId, serviceId) : null,
+                                tooltip: l10n.counterofferTooltip,
+                                icon: const Icon(Icons.swap_horiz,
+                                    color: Colors.orange),
+                                onPressed: canRespond
+                                    ? () => doCounter(offerId, serviceId)
+                                    : null,
                               ),
                             ],
                           ),
@@ -1047,215 +1164,6 @@ _buildMapCard(),
           );
         });
       },
-    );
-  }
-
-}
-
-Widget _statusChip(String text, Color color) {
-  return Chip(
-    label: Text(text),
-    backgroundColor: color.withOpacity(0.1),
-    labelStyle: TextStyle(color: color, fontWeight: FontWeight.w600),
-  );
-}
-
-extension _WorkerHomeUI on _WorkerHomeState {
-Widget _buildOpportunitiesCard() {
-if (_opError != null) {
-      return Card(
-        color: Colors.orange.withOpacity(0.08),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: ListTile(
-          leading: const Icon(Icons.error_outline, color: Colors.orange),
-          title: Text(_opError!, style: const TextStyle(color: Colors.orange)),
-          trailing: IconButton(
-            icon: const Icon(Icons.refresh_outlined, color: Colors.orange),
-            onPressed: _fetchOpportunities,
-            tooltip: 'Reintentar',
-          ),
-        ),
-      );
-    }
-
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 1,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Tus oportunidades',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            if (_hiddenExpiredOpportunities > 0)
-              Container(
-                margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Se ocultaron $_hiddenExpiredOpportunities solicitudes vencidas.',
-                  style: const TextStyle(color: Colors.orange),
-                ),
-              ),
-            if (_opportunities.isEmpty)
-              const Text(
-                'No hay oportunidades disponibles en tu área por ahora.',
-                style: TextStyle(color: Colors.black54),
-              )
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemCount: _opportunities.length,
-                itemBuilder: (context, index) {
-                  final s = _opportunities[index];
-                  final titulo = (s['titulo'] ?? '').toString();
-                  final categoria = normalizeCategoryValue((s['categoria'] ?? '').toString());
-                  final ubicacion = (s['ubicacion'] ?? '').toString();
-                  final estadoRaw = (s['estado'] ?? s['estadoServicio'] ?? s['status'] ?? 'PENDIENTE').toString();
-                  final estadoUpper = estadoRaw.toUpperCase();
-                  final estadoLabel = _serviceStateLabel(estadoRaw);
-                  final negotiationRaw = (s['estadoNegociacion'] ?? s['negociacionEstado'] ?? '').toString();
-                  final negotiationUpper = negotiationRaw.toUpperCase();
-                  final negotiationLabel = negotiationRaw.isEmpty ? '' : _negotiationStateLabel(negotiationRaw);
-                  final negotiationOpen = negotiationUpper == 'EN_NEGOCIACION';
-                  final bool canOffer = estadoUpper == 'PENDIENTE' && !negotiationOpen;
-                  final fechaRaw = s['fechaEstimada'] ?? s['fecha'];
-                  final fecha = _parseServiceDate(fechaRaw);
-                  final fechaTxt = fecha != null
-                      ? '${fecha.day.toString().padLeft(2,'0')}/${fecha.month.toString().padLeft(2,'0')}/${fecha.year}'
-                      : '';
-                  final int? serviceId = () {
-                    final v = s['id'];
-                    if (v == null) return null;
-                    if (v is int) return v;
-                    return int.tryParse(v.toString());
-                  }();
-
-                  Color statusColor = Colors.orange;
-                  switch (estadoUpper) {
-                    case 'ASIGNADO':
-                    case 'EN_PROCESO':
-                    case 'EN_CURSO':
-                      statusColor = Colors.blue; break;
-                    case 'FINALIZADO':
-                      statusColor = Colors.green; break;
-                    case 'CANCELADO':
-                      statusColor = Colors.red; break;
-                    case 'PENDIENTE_PAGO':
-                      statusColor = Colors.amber.shade800; break;
-                    default:
-                      statusColor = Colors.orange; break;
-                  }
-
-                  final details = <String>[
-                    if (ubicacion.isNotEmpty) ubicacion,
-                    if (categoria.isNotEmpty) categoryDisplayLabel(categoria),
-                    if (fechaTxt.isNotEmpty) 'Fecha: $fechaTxt',
-                    if (negotiationLabel.isNotEmpty) 'Negociacion: $negotiationLabel',
-                  ];
-
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(12),
-                    onTap: serviceId == null || !canOffer
-                        ? null
-                        : () => _openOfferSheet(serviceId, titulo),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: _workerPrimary.withOpacity(0.08),
-                            child: const Icon(Icons.work_outline, color: _workerPrimary),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  titulo.isEmpty ? 'Servicio' : titulo,
-                                  style: const TextStyle(fontWeight: FontWeight.w700),
-                                ),
-                                if (details.isNotEmpty) ...[
-                                  const SizedBox(height: 6),
-                                  Text(details.join('\n')),
-                                ],
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          ConstrainedBox(
-                            constraints: const BoxConstraints(minWidth: 120, maxWidth: 160),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                _statusChip(estadoLabel, statusColor),
-                                const SizedBox(height: 6),
-                                Tooltip(
-                                  message: canOffer
-                                      ? 'Enviar una nueva oferta'
-                                      : 'Este servicio ya no admite nuevas ofertas',
-                                  child: SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton(
-                                      onPressed: serviceId == null || !canOffer
-                                          ? null
-                                          : () => _openOfferSheet(serviceId, titulo),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: _workerPrimary,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 10),
-                                        minimumSize: const Size(0, 40),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(24),
-                                        ),
-                                      ),
-                                      child: const Text('Ofertar'),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMapCard() {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      elevation: 1,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text('Ver mapa', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-            SizedBox(height: 8),
-            CurrentLocationMap(height: 260),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1305,19 +1213,239 @@ if (_opError != null) {
   }
 }
 
+Widget _statusChip(String text, Color color) {
+  return Chip(
+    label: Text(text),
+    backgroundColor: color.withOpacity(0.1),
+    labelStyle: TextStyle(color: color, fontWeight: FontWeight.w600),
+  );
+}
 
+extension _WorkerHomeUI on _WorkerHomeState {
+  Widget _buildOpportunitiesCard() {
+    final l10n = _l10n;
+    if (_opError != null) {
+      return Card(
+        color: Colors.orange.withOpacity(0.08),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: ListTile(
+          leading: const Icon(Icons.error_outline, color: Colors.orange),
+          title: Text(_opError!, style: const TextStyle(color: Colors.orange)),
+          trailing: IconButton(
+            icon: const Icon(Icons.refresh_outlined, color: Colors.orange),
+            onPressed: _fetchOpportunities,
+            tooltip: l10n.refreshTooltip,
+          ),
+        ),
+      );
+    }
 
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.workerOpportunitiesTitle,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            if (_hiddenExpiredOpportunities > 0)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  l10n.workerHiddenExpiredPipe(_hiddenExpiredOpportunities),
+                  style: const TextStyle(color: Colors.orange),
+                ),
+              ),
+            if (_opportunities.isEmpty)
+              Text(
+                l10n.workerNoOpportunities,
+                style: const TextStyle(color: Colors.black54),
+              )
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemCount: _opportunities.length,
+                itemBuilder: (context, index) {
+                  final s = _opportunities[index];
+                  final titulo = (s['titulo'] ?? '').toString();
+                  final categoria =
+                      normalizeCategoryValue((s['categoria'] ?? '').toString());
+                  final ubicacion = (s['ubicacion'] ?? '').toString();
+                  final estadoRaw = (s['estado'] ??
+                          s['estadoServicio'] ??
+                          s['status'] ??
+                          'PENDIENTE')
+                      .toString();
+                  final estadoUpper = estadoRaw.toUpperCase();
+                  final estadoLabel = _serviceStateLabel(estadoRaw);
+                  final negotiationRaw =
+                      (s['estadoNegociacion'] ?? s['negociacionEstado'] ?? '')
+                          .toString();
+                  final negotiationUpper = negotiationRaw.toUpperCase();
+                  final negotiationLabel = negotiationRaw.isEmpty
+                      ? ''
+                      : _negotiationStateLabel(negotiationRaw);
+                  final negotiationOpen = negotiationUpper == 'EN_NEGOCIACION';
+                  final bool canOffer =
+                      estadoUpper == 'PENDIENTE' && !negotiationOpen;
+                  final fechaRaw = s['fechaEstimada'] ?? s['fecha'];
+                  final fecha = _parseServiceDate(fechaRaw);
+                  final fechaTxt = fecha != null
+                      ? '${fecha.day.toString().padLeft(2, '0')}/${fecha.month.toString().padLeft(2, '0')}/${fecha.year}'
+                      : '';
+                  final int? serviceId = () {
+                    final v = s['id'];
+                    if (v == null) return null;
+                    if (v is int) return v;
+                    return int.tryParse(v.toString());
+                  }();
 
+                  Color statusColor = Colors.orange;
+                  switch (estadoUpper) {
+                    case 'ASIGNADO':
+                    case 'EN_PROCESO':
+                    case 'EN_CURSO':
+                      statusColor = Colors.blue;
+                      break;
+                    case 'FINALIZADO':
+                      statusColor = Colors.green;
+                      break;
+                    case 'CANCELADO':
+                      statusColor = Colors.red;
+                      break;
+                    case 'PENDIENTE_PAGO':
+                      statusColor = Colors.amber.shade800;
+                      break;
+                    default:
+                      statusColor = Colors.orange;
+                      break;
+                  }
 
+                  final details = <String>[
+                    if (ubicacion.isNotEmpty) ubicacion,
+                    if (categoria.isNotEmpty) categoryDisplayLabel(categoria),
+                    if (fechaTxt.isNotEmpty) l10n.serviceDateLabel(fechaTxt),
+                    if (negotiationLabel.isNotEmpty)
+                      l10n.workerNegotiationLabel(negotiationLabel),
+                  ];
 
+                  return InkWell(
+                    borderRadius: BorderRadius.circular(12),
+                    onTap: serviceId == null || !canOffer
+                        ? null
+                        : () => _openOfferSheet(serviceId, titulo),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          CircleAvatar(
+                            backgroundColor: _workerPrimary.withOpacity(0.08),
+                            child: const Icon(Icons.work_outline,
+                                color: _workerPrimary),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  titulo.isEmpty
+                                      ? l10n.serviceDefaultTitle
+                                      : titulo,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700),
+                                ),
+                                if (details.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Text(details.join('\\n')),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(
+                                minWidth: 120, maxWidth: 160),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                _statusChip(estadoLabel, statusColor),
+                                const SizedBox(height: 6),
+                                Tooltip(
+                                  message: canOffer
+                                      ? l10n.workerOfferTooltip
+                                      : l10n.workerOfferDisabled,
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: serviceId == null || !canOffer
+                                          ? null
+                                          : () => _openOfferSheet(
+                                              serviceId, titulo),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: _workerPrimary,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 10),
+                                        minimumSize: const Size(0, 40),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(24),
+                                        ),
+                                      ),
+                                      child: Text(l10n.workerOfferButton),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
-
-
-
-
-
-
-
-
-
-
+  Widget _buildMapCard() {
+    final l10n = _l10n;
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.viewMapLabel,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            const CurrentLocationMap(height: 260),
+          ],
+        ),
+      ),
+    );
+  }
+}
