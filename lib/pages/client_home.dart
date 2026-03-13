@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
+import 'package:workify/l10n/app_localizations.dart';
 
 import '../services/api_service.dart';
 import '../services/api_service_payment.dart';
@@ -13,6 +13,33 @@ import '../widgets/current_location_map.dart';
 import '../widgets/payment_checkout_sheet.dart';
 
 const _primary = Color(0xFF2E7D32);
+// ========================
+// Fecha/hora en Bogotá (UTC-5)
+// ========================
+const Duration _kBogotaOffset = Duration(hours: 5);
+
+/// Ahora en Bogotá (UTC-5).
+DateTime _nowBogota() => DateTime.now().toUtc().subtract(_kBogotaOffset);
+
+/// Solo la fecha (00:00) en Bogotá.
+DateTime _bogotaDayStart(DateTime date) {
+  return DateTime(date.year, date.month, date.day);
+}
+
+/// Fin de día en Bogotá para comparaciones (23:59:59).
+DateTime _bogotaEndOfDay(DateTime date) {
+  final start = _bogotaDayStart(date);
+  return DateTime(start.year, start.month, start.day, 23, 59, 59);
+}
+
+/// Convierte cualquier DateTime a hora de Bogotá.
+DateTime _toBogota(DateTime dt) => dt.toUtc().subtract(_kBogotaOffset);
+
+/// Día actual en Bogotá (00:00).
+DateTime _todayBogota() {
+  final nowBogota = DateTime.now().toUtc().subtract(_kBogotaOffset);
+  return DateTime(nowBogota.year, nowBogota.month, nowBogota.day);
+}
 
 class ClientHome extends StatefulWidget {
   static const String routeName = '/clientHome';
@@ -209,13 +236,15 @@ class _ClientHomeState extends State<ClientHome>
         .toString();
     if (raw.isEmpty) return null;
     final parsed = DateTime.tryParse(raw);
-    if (parsed != null) return parsed;
+    if (parsed != null) return _toBogota(parsed);
     final milliseconds = int.tryParse(raw);
-    if (milliseconds != null)
-      return DateTime.fromMillisecondsSinceEpoch(milliseconds);
+    if (milliseconds != null) {
+      return _toBogota(DateTime.fromMillisecondsSinceEpoch(milliseconds));
+    }
     final asDouble = double.tryParse(raw);
-    if (asDouble != null)
-      return DateTime.fromMillisecondsSinceEpoch(asDouble.toInt());
+    if (asDouble != null) {
+      return _toBogota(DateTime.fromMillisecondsSinceEpoch(asDouble.toInt()));
+    }
     return null;
   }
 
@@ -507,12 +536,10 @@ class _ClientHomeState extends State<ClientHome>
     if (!_isPendingState(stateUpper)) return;
     final serviceDate = _serviceDateFromService(service);
     if (serviceDate == null) return;
-    final today = DateTime.now();
-    final todayDay = DateTime(today.year, today.month, today.day);
-    final targetDay =
-        DateTime(serviceDate.year, serviceDate.month, serviceDate.day);
+    final today = _bogotaDayStart(_nowBogota());
+    final targetDay = _bogotaDayStart(serviceDate);
 
-    if (targetDay == todayDay) {
+    if (targetDay == today) {
       if (!_expiryWarningIds.add(serviceId)) return;
       final title = _serviceTitle(service);
       _showClientNotification(
@@ -522,7 +549,7 @@ class _ClientHomeState extends State<ClientHome>
       return;
     }
 
-    if (targetDay.isBefore(todayDay)) {
+    if (targetDay.isBefore(today)) {
       if (_autoDeletedServiceIds.contains(serviceId)) return;
       _autoDeletedServiceIds.add(serviceId);
       final title = _serviceTitle(service);
@@ -608,8 +635,8 @@ class _ClientHomeState extends State<ClientHome>
 
   bool _isDateExpired(DateTime? date) {
     if (date == null) return false;
-    final cutoff = DateTime(date.year, date.month, date.day, 23, 59, 59);
-    return DateTime.now().isAfter(cutoff);
+    final cutoff = _bogotaEndOfDay(date);
+    return _nowBogota().isAfter(cutoff);
   }
 
   bool _isServiceExpired(Map<String, dynamic> service) {
@@ -2049,17 +2076,23 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
+    final today = _todayBogota();
+    final initial = (_fecha != null && !_fecha!.isBefore(today))
+        ? _fecha!
+        : today;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _fecha ?? now.add(const Duration(days: 1)),
-      firstDate: DateTime(now.year, now.month, now.day),
-      lastDate: DateTime(now.year + 2),
+      initialDate: initial,
+      firstDate: today,
+      lastDate: DateTime(today.year + 2),
       helpText: AppLocalizations.of(context)!.datePickerHelp,
       locale: const Locale('es', 'CO'),
+      selectableDayPredicate: (day) =>
+          !_bogotaDayStart(day).isBefore(today), // inactiva días anteriores
     );
     if (picked != null) {
-      setState(() => _fecha = DateTime(picked.year, picked.month, picked.day));
+      final normalized = DateTime(picked.year, picked.month, picked.day);
+      setState(() => _fecha = normalized.isBefore(today) ? today : normalized);
     }
   }
 
@@ -2067,8 +2100,7 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
     final l10n = AppLocalizations.of(context)!;
     if (_sending) return;
     if (!_formKey.currentState!.validate()) return;
-    final today = DateTime.now();
-    final todayAt0 = DateTime(today.year, today.month, today.day);
+    final todayAt0 = _todayBogota();
     if (_fecha == null || _fecha!.isBefore(todayAt0)) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(l10n.dateInPastError),
@@ -2110,7 +2142,7 @@ class _PublishServiceFormState extends State<_PublishServiceForm> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    
+
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -2287,17 +2319,23 @@ class _EditServiceFormState extends State<_EditServiceForm> {
   }
 
   Future<void> _pickDate() async {
-    final now = DateTime.now();
+    final today = _todayBogota();
+    final initial = (_fecha != null && !_fecha!.isBefore(today))
+        ? _fecha!
+        : today;
     final picked = await showDatePicker(
       context: context,
-      initialDate: _fecha ?? now.add(const Duration(days: 1)),
-      firstDate: DateTime(now.year, now.month, now.day),
-      lastDate: DateTime(now.year + 2),
+      initialDate: initial,
+      firstDate: today,
+      lastDate: DateTime(today.year + 2),
       helpText: AppLocalizations.of(context)!.datePickerHelp,
       locale: const Locale('es', 'CO'),
+      selectableDayPredicate: (day) =>
+          !_bogotaDayStart(day).isBefore(today), // inactiva días anteriores
     );
     if (picked != null) {
-      setState(() => _fecha = DateTime(picked.year, picked.month, picked.day));
+      final normalized = DateTime(picked.year, picked.month, picked.day);
+      setState(() => _fecha = normalized.isBefore(today) ? today : normalized);
     }
   }
 
@@ -2305,8 +2343,7 @@ class _EditServiceFormState extends State<_EditServiceForm> {
     final l10n = AppLocalizations.of(context)!;
     if (_saving) return;
     if (!_formKey.currentState!.validate()) return;
-    final today = DateTime.now();
-    final todayAt0 = DateTime(today.year, today.month, today.day);
+    final todayAt0 = _todayBogota();
     if (_fecha == null || _fecha!.isBefore(todayAt0)) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(l10n.dateInPastError),

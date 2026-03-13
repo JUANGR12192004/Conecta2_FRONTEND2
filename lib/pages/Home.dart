@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/locale_provider.dart';
-import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
+import '../l10n/app_localizations.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -81,7 +81,7 @@ class _HomePageState extends State<HomePage> {
                     Text(
                       localizations.subtitle,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            color: Colors.white.withOpacity(0.88),
+                            color: Colors.white.withAlpha((0.88 * 255).toInt()),
                           ),
                     ),
                     const SizedBox(height: 24),
@@ -133,7 +133,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 32),
                     Card(
-                      color: Colors.white.withOpacity(0.12),
+                      color: Colors.white.withAlpha((0.12 * 255).toInt()),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(18),
                       ),
@@ -207,7 +207,7 @@ class _CountrySelector extends StatelessWidget {
       tooltip: tooltip,
       iconSize: 40,
       icon: CircleAvatar(
-        backgroundColor: Colors.white.withOpacity(0.15),
+        backgroundColor: Colors.white.withAlpha((0.15 * 255).toInt()),
         child: Text(
           provider.selectedCountry.emoji,
           style: const TextStyle(fontSize: 22),

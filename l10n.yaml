@@ -3,3 +3,4 @@ template-arb-file: app_en_US.arb
 output-localization-file: app_localizations.dart
 output-class: AppLocalizations
 preferred-supported-locales: [es_CO, pt_BR, en_US, fr_FR, de_DE]
+untranslated-messages-file: lib/l10n/untranslated_en.json

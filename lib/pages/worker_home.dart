@@ -8,7 +8,7 @@ import '../widgets/profile_popover.dart';
 import '../utils/categories.dart';
 import '../widgets/current_location_map.dart';
 import '../widgets/payment_checkout_helper.dart';
-import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
+import 'package:workify/l10n/app_localizations.dart';
 
 const Color _workerPrimary = Color(0xFF1E88E5);
 const Color _workerSecondary = Color(0xFF64B5F6);
@@ -1109,7 +1109,10 @@ class _WorkerHomeState extends State<WorkerHome> with WidgetsBindingObserver {
                         ];
                         final subtitleWidget = subtitleLines.isEmpty
                             ? null
-                            : Text(subtitleLines.join('\\n'));
+                            : Text(
+                                subtitleLines.join('\n'),
+                                softWrap: true,
+                              );
                         final estadoNormalized = estadoRaw.toUpperCase();
                         final canRespond = offerId > 0 &&
                             (estadoNormalized.isEmpty ||
@@ -1372,7 +1375,10 @@ extension _WorkerHomeUI on _WorkerHomeState {
                                 ),
                                 if (details.isNotEmpty) ...[
                                   const SizedBox(height: 6),
-                                  Text(details.join('\\n')),
+                                  Text(
+                                    details.join('\n'),
+                                    softWrap: true,
+                                  ),
                                 ],
                               ],
                             ),

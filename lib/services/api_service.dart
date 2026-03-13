@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:http/http.dart' as http;
 import '../utils/categories.dart';
 
@@ -7,21 +6,12 @@ class ApiService {
   // ==========================
   // BASE URL
   // ==========================
-  static String host = kIsWeb
-      ? "http://localhost:8080"
-      : (defaultTargetPlatform == TargetPlatform.android
-      ? "http://10.0.2.2:8080"
-      : "http://localhost:8080");
+  static const String host = "https://conecta2-backend-2.onrender.com";
   // Microservicio de pagos (pasarela). Se puede ajustar si corre en otro host/puerto.
-  static String get paymentsHost {
-    if (kIsWeb) {
-      return "http://localhost:8080";
-    }
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      return "http://10.0.2.2:8080";
-    }
-    return "http://localhost:8080";
-  }
+  static const String paymentsHost = host;
+  static const Duration requestTimeout = Duration(seconds: 45);
+  static const String requestTimeoutMessage =
+      "El servidor tardó demasiado en responder. Intenta de nuevo en unos segundos.";
 
   static String get _apiPrefix => "/api/v1";
   static Uri _u(String path, {Map<String, String>? query}) =>
@@ -33,6 +23,8 @@ class ApiService {
   /// Construye URIs fuera de `/api/v1` (compatibilidad con rutas legacy).
   static Uri _absolute(String path, {Map<String, String>? query}) =>
       Uri.parse("$host$path").replace(queryParameters: query);
+
+  static Never requestTimedOut() => throw Exception(requestTimeoutMessage);
 
   // ==========================
   // JWT EN MEMORIA
@@ -98,7 +90,7 @@ class ApiService {
             "confirmarContrasena": confirmarContrasena,
           }),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
     return _processResponse(res, "registro de trabajador");
   }
 
@@ -108,7 +100,7 @@ class ApiService {
           _u("/clients/services/public/categories"),
           headers: _jsonHeaders(),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     if (res.statusCode != 200) {
       throw Exception(
@@ -183,7 +175,7 @@ class ApiService {
           headers: _jsonHeaders(),
           body: jsonEncode({"email": correo, "password": contrasena}),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     final data = _processResponse(res, "login de trabajador");
     if (data["token"] is String) setWorkerToken(data["token"]);
@@ -198,7 +190,7 @@ class ApiService {
           _u("/auth/verify", query: {"token": activationToken}),
           headers: _jsonHeaders(),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
     return _processResponse(res, "verificación de cuenta");
   }
 
@@ -209,7 +201,7 @@ class ApiService {
           headers: _jsonHeaders(),
           body: jsonEncode({"email": email}),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
     return _processResponse(res, "reenviar activación");
   }
 
@@ -223,7 +215,7 @@ class ApiService {
           _absolute("/api/Trabajadores/$id"),
           headers: _jsonHeaders(auth: true, role: 'worker'),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     if (res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
@@ -283,7 +275,7 @@ class ApiService {
           headers: _jsonHeaders(auth: true, role: 'worker'),
           body: jsonEncode(payload),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     return _processResponse(res, "actualización de trabajador");
   }
@@ -310,7 +302,7 @@ class ApiService {
             "confirmarContrasena": confirmarContrasena,
           }),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
     return _processResponse(res, "registro de cliente");
   }
 
@@ -325,7 +317,7 @@ class ApiService {
           headers: _jsonHeaders(),
           body: jsonEncode({"email": correo, "password": contrasena}),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     final data = _processResponse(res, "login de cliente");
     if (data["token"] is String) setClientToken(data["token"]);
@@ -340,7 +332,7 @@ class ApiService {
           _u("/auth/clients/verify", query: {"token": activationToken}),
           headers: _jsonHeaders(),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
     return _processResponse(res, "verificación de cuenta");
   }
 
@@ -352,7 +344,7 @@ class ApiService {
     Future<Map<String, dynamic>> attempt(Uri uri) async {
       final res = await http
           .get(uri, headers: _jsonHeaders(auth: true, role: 'client'))
-          .timeout(const Duration(seconds: 15));
+          .timeout(requestTimeout, onTimeout: requestTimedOut);
 
       dynamic decoded;
       try {
@@ -437,7 +429,7 @@ class ApiService {
             headers: _jsonHeaders(auth: true, role: 'client'),
             body: jsonEncode(payload),
           )
-          .timeout(const Duration(seconds: 15));
+          .timeout(requestTimeout, onTimeout: requestTimedOut);
       return _processResponse(res, "actualización de cliente");
     }
 
@@ -463,7 +455,7 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getServices() async {
     final res = await http
         .get(_u("/clients/services"), headers: _jsonHeaders(auth: true, role: 'client'))
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     if (res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
@@ -503,7 +495,7 @@ class ApiService {
           _u("/clients/services/public/available", query: query.isEmpty ? null : query),
           headers: hasWorkerAuth ? _jsonHeaders(auth: true, role: 'worker') : _jsonHeaders(),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     if (res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
@@ -542,7 +534,7 @@ class ApiService {
             if (mensaje != null && mensaje.trim().isNotEmpty) "mensaje": mensaje,
           }),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
     return _processResponse(res, "crear oferta");
   }
 
@@ -555,7 +547,7 @@ class ApiService {
           _u("/clients/$clientId/offers/pending"),
           headers: _jsonHeaders(auth: true, role: 'client'),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     if (res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
@@ -579,7 +571,7 @@ class ApiService {
           _u("/workers/$workerId/offers/pending"),
           headers: _jsonHeaders(auth: true, role: 'worker'),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     if (res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
@@ -612,7 +604,7 @@ class ApiService {
           headers: _jsonHeaders(auth: true, role: 'client'),
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
     return _processResponse(res, "respuesta del cliente");
   }
 
@@ -635,7 +627,7 @@ class ApiService {
           headers: _jsonHeaders(auth: true, role: 'client'),
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
     return _processResponse(res, "contraoferta del cliente");
   }
 
@@ -660,7 +652,7 @@ class ApiService {
           headers: _jsonHeaders(auth: true, role: 'worker'),
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
     return _processResponse(res, "respuesta del trabajador");
   }
 
@@ -683,7 +675,7 @@ class ApiService {
           headers: _jsonHeaders(auth: true, role: 'worker'),
           body: jsonEncode(body),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
     return _processResponse(res, "contraoferta del trabajador");
   }
 
@@ -699,7 +691,7 @@ class ApiService {
           _u("/clients/services/public/by-client/$clientId"),
           headers: _jsonHeaders(),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     if (res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
@@ -722,13 +714,13 @@ class ApiService {
     required String ubicacion,
     required DateTime fechaEstimada,
   }) async {
+    final String fechaIso = _toIsoUtcMinus5(fechaEstimada);
     final body = jsonEncode({
       "titulo": titulo,
       "descripcion": descripcion,
       "categoria": categoria,
       "ubicacion": ubicacion,
-      "fechaEstimada": fechaEstimada
-          .toIso8601String(), // ISO ok para LocalDateTime
+      "fechaEstimada": fechaIso,
     });
 
     final res = await http
@@ -737,7 +729,7 @@ class ApiService {
           headers: _jsonHeaders(auth: true, role: 'client'),
           body: body,
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     if (res.statusCode == 201 || res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
@@ -760,12 +752,13 @@ class ApiService {
     required String ubicacion,
     required DateTime fechaEstimada,
   }) async {
+    final String fechaIso = _toIsoUtcMinus5(fechaEstimada);
     final body = jsonEncode({
       "titulo": titulo,
       "descripcion": descripcion,
       "categoria": categoria,
       "ubicacion": ubicacion,
-      "fechaEstimada": fechaEstimada.toIso8601String(),
+      "fechaEstimada": fechaIso,
     });
 
     final res = await http
@@ -774,7 +767,7 @@ class ApiService {
           headers: _jsonHeaders(auth: true, role: 'client'),
           body: body,
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     if (res.statusCode == 200) {
       final decoded = jsonDecode(res.body);
@@ -790,6 +783,21 @@ class ApiService {
     );
   }
 
+  /// Normaliza la fecha al huso UTC-5 (ej. Colombia/Perú)
+  /// y la serializa en ISO-8601 con offset fijo  para evitar que
+  /// el backend interprete la fecha con otra zona horaria o reste un día.
+  /// Serializa la fecha en el formato que espera el backend, con offset de Bogotá
+  /// (America/Bogota, UTC-5) y con hora fija 23:59:00.000 para que pase la
+  /// validación FutureOrPresent.
+  static String _toIsoUtcMinus5(DateTime date) {
+    // Construimos la marca en Bogotá (UTC-5) a las 23:59:00.000 sin offset,
+    // para compatibilidad con el backend que sigue parseando LocalDateTime.
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-${d}T23:59:00.000';
+  }
+
   /// DELETE /api/v1/clients/services/{id}  (privada)
   static Future<Map<String, dynamic>> deleteService(int id) async {
     final res = await http
@@ -797,7 +805,7 @@ class ApiService {
           _u("/clients/services/$id"),
           headers: _jsonHeaders(auth: true, role: 'client'),
         )
-        .timeout(const Duration(seconds: 15));
+        .timeout(requestTimeout, onTimeout: requestTimedOut);
 
     Map<String, dynamic> normalizeResponse(dynamic decoded, {bool defaultSuccess = true}) {
       if (decoded is Map<String, dynamic>) {
@@ -880,7 +888,7 @@ class ApiService {
       throw Exception(_msg(decoded, fallback: "Prohibido (403)."));
     }
     if (status >= 500) {
-      throw Exception("Error del servidor ($status): $body");
+      throw Exception(_msg(decoded, fallback: "Error del servidor ($status): $body"));
     }
     throw Exception(_msg(decoded, fallback: "Error en $proceso: $body"));
   }
@@ -892,9 +900,15 @@ class ApiService {
     if (decoded is Map && decoded["message"] is String) {
       return decoded["message"];
     }
+    if (decoded is Map && decoded["errores"] is List) {
+      final errores = (decoded["errores"] as List)
+          .whereType<String>()
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .join(" | ");
+      if (errores.isNotEmpty) return errores;
+    }
     return fallback;
   }
 }
-
-
 

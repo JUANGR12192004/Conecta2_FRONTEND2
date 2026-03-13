@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
+import 'package:workify/l10n/app_localizations.dart';
 
 class ProfilePopover extends StatelessWidget {
   const ProfilePopover({
@@ -60,7 +60,7 @@ class ProfilePopover extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         radius: 28,
-                        backgroundColor: accentColor.withOpacity(0.12),
+                        backgroundColor: accentColor.withAlpha((0.12 * 255).toInt()),
                         child: CircleAvatar(
                           radius: 24,
                           backgroundColor: accentColor,

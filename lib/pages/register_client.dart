@@ -1,9 +1,9 @@
 ﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
-import 'package:http/http.dart' as http;
+import 'package:workify/l10n/app_localizations.dart';
 
+import '../services/api_service.dart';
 import '../ui/theme/app_theme.dart';
 
 /// Página de registro para CLIENTE con estilo renovado
@@ -28,8 +28,6 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
   bool _obscureConfirm = true;
 
   Map<String, String> fieldErrors = {};
-  final String baseHost = "http://localhost:8080";
-  String get registerUrl => "/api/v1/auth/clients/register";
 
   void _showSnack(String message, {Color? background}) {
     if (!mounted) return;
@@ -69,78 +67,27 @@ class _RegisterClientPageState extends State<RegisterClientPage> {
 
     setState(() => _loading = true);
 
-    final payload = {
-      "nombreCompleto": _nameCtrl.text.trim(),
-      "correo": _emailCtrl.text.trim(),
-      "contrasena": _passCtrl.text,
-      "confirmarContrasena": _confirmCtrl.text,
-      "celular": _phoneCtrl.text.trim(),
-    };
-
     try {
-      final uri = Uri.parse(registerUrl);
-      final response = await http
-          .post(uri, headers: {"Content-Type": "application/json"}, body: jsonEncode(payload))
-          .timeout(const Duration(seconds: 15));
+      final resp = await ApiService.registerClient(
+        nombreCompleto: _nameCtrl.text.trim(),
+        correo: _emailCtrl.text.trim(),
+        celular: _phoneCtrl.text.trim(),
+        contrasena: _passCtrl.text,
+        confirmarContrasena: _confirmCtrl.text,
+      );
 
       if (!mounted) return;
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        var msg = l10n.registrationReceived;
-        try {
-          final data = jsonDecode(response.body);
-          if (data["mensaje"] is String) msg = data["mensaje"] as String;
-        } catch (_) {}
-
-        _showSnack(msg, background: Colors.green);
-        await Future.delayed(const Duration(milliseconds: 900));
-        if (!mounted) return;
-        Navigator.pushReplacementNamed(context, "/login", arguments: {"role": "client"});
-        return;
-      }
-
-      final content = response.body;
-      dynamic decoded;
-      try {
-        decoded = jsonDecode(content);
-      } catch (_) {
-        decoded = null;
-      }
-
-      if (decoded is Map && decoded.containsKey("errores")) {
-        final parsed = <String, String>{};
-        for (var e in decoded["errores"] as List<dynamic>) {
-          if (e is String && e.contains(":")) {
-            final parts = e.split(":");
-            final key = parts[0].trim();
-            final msg = parts.sublist(1).join(":").trim();
-            parsed[key] = msg;
-          } else if (e is String) {
-            _showSnack(e);
-          }
-        }
-        setState(() => fieldErrors = parsed);
-        if (decoded.containsKey("mensaje")) {
-          _showSnack(decoded["mensaje"].toString());
-        }
-        return;
-      }
-
-      if (decoded is Map && decoded.containsKey("mensaje")) {
-        _showSnack(decoded["mensaje"].toString());
-        return;
-      }
-
-      if (content.isNotEmpty) {
-        _showSnack(content);
-        return;
-      }
-
-      _showSnack(l10n.unknownError);
-    } on http.ClientException catch (e) {
-      _showSnack(l10n.connectionError(e.message ?? e.toString()));
+      final msg = (resp["mensaje"] as String?) ?? l10n.registrationReceived;
+      _showSnack(msg, background: Colors.green);
+      await Future.delayed(const Duration(milliseconds: 900));
+      if (!mounted) return;
+      Navigator.pushReplacementNamed(
+        context,
+        "/login",
+        arguments: {"role": "client"},
+      );
     } on Exception catch (e) {
-      _showSnack(l10n.errorMessage(e.toString()));
+      _showSnack(e.toString().replaceFirst("Exception: ", ""));
     } finally {
       if (mounted) setState(() => _loading = false);
     }

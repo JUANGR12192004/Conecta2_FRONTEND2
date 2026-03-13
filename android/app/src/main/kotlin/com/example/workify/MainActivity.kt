@@ -1,4 +1,4 @@
-package com.example.flutter_applicatiomconecta2
+package com.example.workify
 
 import io.flutter.embedding.android.FlutterActivity
 

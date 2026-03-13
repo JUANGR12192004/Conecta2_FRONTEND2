@@ -1,0 +1,20 @@
+{
+  "en": [
+    "workerOfferForService",
+    "workerPriceProposed",
+    "workerOfferButton",
+    "workerOfferTooltip",
+    "workerOfferDisabled",
+    "workerHiddenExpiredPipe",
+    "workerNoOpportunities",
+    "workerNegotiationLabel",
+    "workerOfferSent",
+    "workerAccountLoadButton",
+    "workerAccountUpdated",
+    "workerLoadError",
+    "workerClientOfferLabel",
+    "workerOpportunitiesTitle",
+    "optionalMessageLabel",
+    "workerOfferError"
+  ]
+}

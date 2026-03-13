@@ -2,9 +2,10 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'api_service.dart';
 import 'payment_intent_response.dart';
 
-const _gatewayBaseUrl = 'http://10.0.2.2:8090';
+const _gatewayBaseUrl = 'https://conecta2-backend-2.onrender.com';
 const Map<String, String> _gatewayHeaders = {
   'Content-Type': 'application/json',
   'X-API-KEY': 'conecta2-test-key',
@@ -25,7 +26,12 @@ Future<PaymentIntentResponse?> debugCreateIntent({
     'description': description,
     'metadata': metadata,
   });
-  final response = await http.post(uri, headers: _gatewayHeaders, body: body);
+  final response = await http
+      .post(uri, headers: _gatewayHeaders, body: body)
+      .timeout(
+        ApiService.requestTimeout,
+        onTimeout: ApiService.requestTimedOut,
+      );
 
   if (response.statusCode == 201) {
     return PaymentIntentResponse.fromJson(jsonDecode(response.body));

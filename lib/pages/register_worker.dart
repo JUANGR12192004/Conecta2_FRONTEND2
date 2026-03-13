@@ -1,5 +1,5 @@
-﻿import 'package:flutter/material.dart';
-import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
+import 'package:flutter/material.dart';
+import 'package:workify/l10n/app_localizations.dart';
 
 import '../services/api_service.dart'; // <-- ajusta la ruta si es distinta
 import '../utils/categories.dart';

@@ -11,7 +11,7 @@ import 'pages/register_worker.dart';
 import 'pages/worker_home.dart';
 import 'services/locale_provider.dart';
 import 'ui/theme/app_theme.dart';
-import 'package:flutter_applicatiomconecta2/l10n/app_localizations.dart';
+import 'package:workify/l10n/app_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
